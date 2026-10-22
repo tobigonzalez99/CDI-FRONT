@@ -10,6 +10,12 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-geist-sans);
+  /* Identidad institucional: habilita bg-brand-red, text-brand-black, etc. */
+  --color-brand-red: var(--brand-red);
+  --color-brand-red-hover: var(--brand-red-hover);
+  --color-brand-red-soft: var(--brand-red-soft);
+  --color-brand-black: var(--brand-black);
+  --color-brand-graphite: var(--brand-graphite);
   /* Estados de cuota del socio (HU-04) */
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
@@ -55,11 +61,24 @@
 
 /*
  * Paleta institucional del Club Deportivo Independencia.
- * PLACEHOLDER: reemplazar --primary / --secondary / --accent (y sus pares .dark)
- * con los colores oficiales. Todos los componentes consumen estos tokens,
- * así que el cambio de marca no requiere tocar componentes.
+ *
+ * Los tonos rojo/negro se derivaron del escudo del club (rojo y negro con
+ * monograma blanco). No son los HEX oficiales: para fijarlos basta con
+ * editar las cuatro variables --brand-* de abajo; ningún componente tiene
+ * colores escritos a mano, todos consumen estos tokens.
+ *
+ * --brand-red         #d41f26  contraste 5.2:1 con texto blanco (AA)
+ * --brand-red-soft    #ff4d4f  rojo legible SOBRE fondo negro (5.9:1).
+ *                              El rojo pleno sobre negro da 3.7:1 y no
+ *                              alcanza para texto normal.
  */
 :root {
+  --brand-red: #d41f26;
+  --brand-red-hover: #b31a20;
+  --brand-red-soft: #ff4d4f;
+  --brand-black: #0e0e10;
+  --brand-graphite: #1a1a1d;
+
   --success: oklch(0.6 0.15 150);
   --success-foreground: oklch(0.985 0 0);
   --warning: oklch(0.577 0.245 27.325);
@@ -70,8 +89,9 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  /* shadcn/ui hereda la marca: botones, focus rings y acentos salen rojos. */
+  --primary: var(--brand-red);
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -81,7 +101,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: var(--brand-red);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -109,8 +129,8 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --primary: var(--brand-red);
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
