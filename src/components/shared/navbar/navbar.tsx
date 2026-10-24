@@ -5,6 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, LogIn } from "lucide-react";
 
+import { UserMenu } from "@/features/auth/components/user-menu";
+import { useSession } from "@/features/auth/hooks/use-session";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +28,7 @@ const linkStyles =
 export function Navbar() {
   const [loginOpen, setLoginOpen] = useState(false);
   const pathname = usePathname();
+  const { user } = useSession();
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
@@ -112,14 +116,18 @@ export function Navbar() {
             </nav>
 
             <div className="ml-auto flex items-center gap-2 md:ml-0">
-              <Button
-                size="lg"
-                className="hidden h-10 px-5 md:inline-flex"
-                onClick={() => setLoginOpen(true)}
-              >
-                <LogIn className="size-4" aria-hidden />
-                Iniciar sesión
-              </Button>
+              {user ? (
+                <UserMenu user={user} />
+              ) : (
+                <Button
+                  size="lg"
+                  className="hidden h-10 px-5 md:inline-flex"
+                  onClick={() => setLoginOpen(true)}
+                >
+                  <LogIn className="size-4" aria-hidden />
+                  Iniciar sesión
+                </Button>
+              )}
 
               <MobileNav onLoginClick={() => setLoginOpen(true)} isActive={isActive} />
             </div>

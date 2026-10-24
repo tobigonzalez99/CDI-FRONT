@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
 
+import { CambiarPasswordForm } from "@/features/auth/components/cambiar-password-form";
+import { RequireAuth } from "@/features/auth/components/require-auth";
+
 export const metadata: Metadata = { title: "Cambiar contraseña" };
 
 export default function CambiarPasswordPage() {
-  return <h1 className="text-2xl font-heading font-semibold">Cambiar contraseña</h1>;
+  return (
+    <RequireAuth permitirPasswordPendiente>
+      <CambiarPasswordForm />
+    </RequireAuth>
+  );
 }
