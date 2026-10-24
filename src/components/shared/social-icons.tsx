@@ -36,3 +36,29 @@ export function FacebookIcon({ className, ...props }: IconProps) {
     </svg>
   );
 }
+
+export function XIcon({ className, ...props }: IconProps) {
+  return (
+    <svg {...baseProps} className={className} {...props}>
+      <path d="M4 4l16 16M20 4L4 20" />
+    </svg>
+  );
+}
+
+export function YoutubeIcon({ className, ...props }: IconProps) {
+  return (
+    <svg {...baseProps} className={className} {...props}>
+      <rect x="2" y="5" width="20" height="14" rx="4" />
+      <path d="M10 9.5v5l4.5-2.5z" />
+    </svg>
+  );
+}
+
+export function TiktokIcon({ className, ...props }: IconProps) {
+  return (
+    <svg {...baseProps} className={className} {...props}>
+      <path d="M14 3v11.5a4 4 0 1 1-3.2-3.92" />
+      <path d="M14 6.5a5.5 5.5 0 0 0 5.5 4.5" />
+    </svg>
+  );
+}

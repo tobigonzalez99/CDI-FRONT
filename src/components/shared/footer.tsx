@@ -2,20 +2,23 @@ import Link from "next/link";
 import { Mail, MapPin, Phone } from "lucide-react";
 
 import { ClubLogo } from "@/components/shared/club-logo";
-import { FacebookIcon, InstagramIcon } from "@/components/shared/social-icons";
+import {
+  FacebookIcon,
+  InstagramIcon,
+  TiktokIcon,
+  XIcon,
+  YoutubeIcon,
+} from "@/components/shared/social-icons";
 import { hasChildren, NAV_ENTRIES } from "@/components/shared/navbar/nav-config";
-import { mapQuery, siteConfig } from "@/lib/site-config";
+import { direccionSede, mapQuery, siteConfig } from "@/lib/site-config";
 
 const socialLinks = [
   { label: "Instagram", href: siteConfig.redes.instagram, Icon: InstagramIcon },
   { label: "Facebook", href: siteConfig.redes.facebook, Icon: FacebookIcon },
+  { label: "X", href: siteConfig.redes.x, Icon: XIcon },
+  { label: "TikTok", href: siteConfig.redes.tiktok, Icon: TiktokIcon },
+  { label: "YouTube", href: siteConfig.redes.youtube, Icon: YoutubeIcon },
 ].filter((link): link is typeof link & { href: string } => Boolean(link.href));
-
-const contactItems = [
-  { Icon: MapPin, label: "Dirección", value: siteConfig.contacto.direccion },
-  { Icon: Phone, label: "Teléfono", value: siteConfig.contacto.telefono, href: `tel:` },
-  { Icon: Mail, label: "Correo", value: siteConfig.contacto.email, href: `mailto:` },
-];
 
 /** Enlaces del menú aplanados: las subsecciones de Fútbol se listan sueltas. */
 const footerLinks = NAV_ENTRIES.flatMap((entry) =>
@@ -41,8 +44,15 @@ export function Footer() {
 
           <p className="mt-4 text-sm text-white/60">{siteConfig.description}</p>
 
+          <p className="mt-3 text-xs text-white/40">
+            Fundado el{" "}
+            <time dateTime={siteConfig.fundacion.iso}>{siteConfig.fundacion.texto}</time>
+            {" · "}
+            <span className="text-brand-red-soft">{siteConfig.apodo}</span>
+          </p>
+
           {socialLinks.length > 0 && (
-            <div className="mt-5 flex gap-2">
+            <div className="mt-5 flex flex-wrap gap-2">
               {socialLinks.map(({ label, href, Icon }) => (
                 <a
                   key={label}
@@ -91,29 +101,41 @@ export function Footer() {
             <li className="flex items-start gap-2.5 text-white/70">
               <MapPin className="mt-0.5 size-4 shrink-0 text-brand-red-soft" aria-hidden />
               <span>
-                {siteConfig.localidad}
+                {siteConfig.sede.direccion}
                 <br />
-                <span className="text-white/50">{siteConfig.provincia}, Argentina</span>
+                <span className="text-white/50">
+                  {siteConfig.localidad} (CP {siteConfig.codigoPostal})
+                  <br />
+                  {siteConfig.provincia}, {siteConfig.pais}
+                </span>
               </span>
             </li>
 
-            {contactItems.map(({ Icon, label, value, href }) =>
-              value ? (
-                <li key={label} className="flex items-start gap-2.5">
-                  <Icon className="mt-0.5 size-4 shrink-0 text-brand-red-soft" aria-hidden />
-                  {href ? (
-                    <a
-                      href={`${href}${value}`}
-                      className="text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline"
-                    >
-                      {value}
-                    </a>
-                  ) : (
-                    <span className="text-white/70">{value}</span>
-                  )}
-                </li>
-              ) : null,
-            )}
+            {siteConfig.contacto.telefonos.map((telefono) => (
+              <li key={telefono.tel} className="flex items-start gap-2.5">
+                <Phone className="mt-0.5 size-4 shrink-0 text-brand-red-soft" aria-hidden />
+                <span>
+                  <a
+                    href={`tel:${telefono.tel}`}
+                    className="text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline"
+                  >
+                    {telefono.display}
+                  </a>
+                  <br />
+                  <span className="text-xs text-white/40">{telefono.etiqueta}</span>
+                </span>
+              </li>
+            ))}
+
+            <li className="flex items-start gap-2.5">
+              <Mail className="mt-0.5 size-4 shrink-0 text-brand-red-soft" aria-hidden />
+              <a
+                href={`mailto:${siteConfig.contacto.email}`}
+                className="break-all text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline"
+              >
+                {siteConfig.contacto.email}
+              </a>
+            </li>
           </ul>
         </div>
 
@@ -125,7 +147,7 @@ export function Footer() {
 
           <div className="mt-4 overflow-hidden rounded-xl border border-white/10">
             <iframe
-              title={`Mapa de ${siteConfig.localidad}`}
+              title={`Mapa de la sede del club en ${direccionSede}`}
               src={`https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
@@ -141,6 +163,13 @@ export function Footer() {
           >
             Abrir en Google Maps
           </a>
+
+          <p className="mt-4 border-t border-white/10 pt-4 text-xs text-white/40">
+            <span className="text-white/60">{siteConfig.predio.nombre}</span>
+            <br />
+            {siteConfig.predio.descripcion} y circuito de automovilismo{" "}
+            {siteConfig.predio.circuito}.
+          </p>
         </div>
       </div>
 
