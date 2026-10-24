@@ -10,7 +10,14 @@ import {
   YoutubeIcon,
 } from "@/components/shared/social-icons";
 import { hasChildren, NAV_ENTRIES } from "@/components/shared/navbar/nav-config";
-import { direccionSede, mapQuery, siteConfig } from "@/lib/site-config";
+import {
+  direccionSede,
+  mapEmbedUrl,
+  mapLinkUrl,
+  predio,
+  sedeSocial,
+  siteConfig,
+} from "@/lib/site-config";
 
 const socialLinks = [
   { label: "Instagram", href: siteConfig.redes.instagram, Icon: InstagramIcon },
@@ -101,7 +108,7 @@ export function Footer() {
             <li className="flex items-start gap-2.5 text-white/70">
               <MapPin className="mt-0.5 size-4 shrink-0 text-brand-red-soft" aria-hidden />
               <span>
-                {siteConfig.sede.direccion}
+                {sedeSocial.direccion}
                 <br />
                 <span className="text-white/50">
                   {siteConfig.localidad} (CP {siteConfig.codigoPostal})
@@ -147,8 +154,8 @@ export function Footer() {
 
           <div className="mt-4 overflow-hidden rounded-xl border border-white/10">
             <iframe
-              title={`Mapa de la sede del club en ${direccionSede}`}
-              src={`https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`}
+              title={`Mapa de la sede social en ${direccionSede}`}
+              src={mapEmbedUrl(sedeSocial.direccion)}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
               className="h-44 w-full border-0 grayscale-[0.3]"
@@ -156,20 +163,27 @@ export function Footer() {
           </div>
 
           <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
+            href={mapLinkUrl(sedeSocial.direccion)}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-3 inline-block text-sm text-white/60 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:ring-2 focus-visible:ring-brand-red-soft focus-visible:outline-none"
           >
-            Abrir en Google Maps
+            {sedeSocial.nombre} en Google Maps
           </a>
 
-          <p className="mt-4 border-t border-white/10 pt-4 text-xs text-white/40">
-            <span className="text-white/60">{siteConfig.predio.nombre}</span>
-            <br />
-            {siteConfig.predio.descripcion} y circuito de automovilismo{" "}
-            {siteConfig.predio.circuito}.
-          </p>
+          {/* El predio está en otra ubicación, con su propio enlace. */}
+          <div className="mt-4 border-t border-white/10 pt-4 text-xs text-white/40">
+            <p className="text-white/60">{predio.nombre}</p>
+            <p className="mt-0.5">{predio.direccion}</p>
+            <a
+              href={mapLinkUrl(predio.direccion)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1.5 inline-block text-white/60 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:ring-2 focus-visible:ring-brand-red-soft focus-visible:outline-none"
+            >
+              Ver el predio en Google Maps
+            </a>
+          </div>
         </div>
       </div>
 
