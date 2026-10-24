@@ -102,6 +102,16 @@ export function mapEmbedUrl(direccion: string) {
   return `https://www.google.com/maps?q=${encodeURIComponent(mapQueryFor(direccion))}&output=embed`;
 }
 
+/**
+ * Enlace de WhatsApp. wa.me pide el número sin "+" ni separadores; como los
+ * `tel` ya están en formato internacional, alcanza con sacarles el "+".
+ */
+export function whatsappUrl(tel: string, mensaje?: string) {
+  const numero = tel.replace(/\D/g, "");
+  const texto = mensaje ? `?text=${encodeURIComponent(mensaje)}` : "";
+  return `https://wa.me/${numero}${texto}`;
+}
+
 export function mapLinkUrl(direccion: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQueryFor(direccion))}`;
 }

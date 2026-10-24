@@ -37,6 +37,15 @@ export function FacebookIcon({ className, ...props }: IconProps) {
   );
 }
 
+export function WhatsappIcon({ className, ...props }: IconProps) {
+  return (
+    <svg {...baseProps} className={className} {...props}>
+      <path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.3z" />
+      <path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l.9-1.6-2-1-.9.9a5.6 5.6 0 0 1-1.8-1.8l.9-.9-1-2z" />
+    </svg>
+  );
+}
+
 export function XIcon({ className, ...props }: IconProps) {
   return (
     <svg {...baseProps} className={className} {...props}>

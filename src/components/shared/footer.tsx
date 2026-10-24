@@ -6,6 +6,7 @@ import {
   FacebookIcon,
   InstagramIcon,
   TiktokIcon,
+  WhatsappIcon,
   XIcon,
   YoutubeIcon,
 } from "@/components/shared/social-icons";
@@ -17,6 +18,7 @@ import {
   predio,
   sedeSocial,
   siteConfig,
+  whatsappUrl,
 } from "@/lib/site-config";
 
 const socialLinks = [
@@ -127,6 +129,19 @@ export function Footer() {
                     className="text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline"
                   >
                     {telefono.display}
+                  </a>
+                  <a
+                    href={whatsappUrl(
+                      telefono.tel,
+                      `Hola, me comunico desde la web del ${siteConfig.name}.`,
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Escribir por WhatsApp a ${telefono.etiqueta} (se abre en una pestaña nueva)`}
+                    className="ml-2 inline-flex items-center gap-1 align-middle text-xs text-white/50 transition-colors hover:text-[#25D366] focus-visible:ring-2 focus-visible:ring-brand-red-soft focus-visible:outline-none"
+                  >
+                    <WhatsappIcon className="size-3.5" />
+                    WhatsApp
                   </a>
                   <br />
                   <span className="text-xs text-white/40">{telefono.etiqueta}</span>
