@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 
+import { MiPerfil } from "@/features/socios/components/mi-perfil";
+
 export const metadata: Metadata = { title: "Mi perfil" };
 
 export default function PerfilPage() {
-  return <h1 className="text-2xl font-heading font-semibold">Mi perfil</h1>;
+  return <MiPerfil />;
 }
