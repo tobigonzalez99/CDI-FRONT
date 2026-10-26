@@ -22,8 +22,19 @@ export interface CreateCuentaInput {
 
 export type UpdateCuentaInput = Partial<CreateCuentaInput>;
 
-export const MEDIOS_PAGO = ["EFECTIVO", "TRANSFERENCIA"] as const;
+export const MEDIOS_PAGO = [
+  "EFECTIVO",
+  "TRANSFERENCIA",
+  "BILLETERA_VIRTUAL",
+] as const;
 export type MedioPago = (typeof MEDIOS_PAGO)[number];
+
+/** Etiquetas para mostrar; el backend ya las usa en el resumen. */
+export const ETIQUETAS_MEDIO_PAGO: Record<MedioPago, string> = {
+  EFECTIVO: "Efectivo",
+  TRANSFERENCIA: "Transferencia",
+  BILLETERA_VIRTUAL: "Billetera virtual",
+};
 
 /** Datos del socio que acompañan al cobro en los listados. */
 export interface SocioDelPago {
@@ -121,4 +132,16 @@ export interface ResumenCobranzas {
   ingresosPorMes: IngresosDelMes[];
   porMedioPago: TotalPorClave[];
   porCuenta: TotalPorClave[];
+}
+
+/** Historial de un socio: el listado paginado más sus totales. */
+export interface HistorialDeSocio {
+  data: Pago[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  /** Suma de los pagos vigentes del socio. */
+  totalCobrado: number;
+  pagosVigentes: number;
 }

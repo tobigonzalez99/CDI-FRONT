@@ -97,3 +97,15 @@ export interface SocioFilters extends PaginationParams {
   sortBy?: "apellido" | "numeroSocio" | "vigenciaHasta" | "createdAt";
   sortOrder?: "asc" | "desc";
 }
+
+/**
+ * Lo único que el socio puede editar de su propia ficha.
+ * Nombre, apellido, DNI y email lo identifican y solo los cambia la
+ * administración (`PATCH /socios/:id`), igual que categoría, vigencia y estado.
+ */
+export interface UpdateMiPerfilInput {
+  telefono?: string;
+  domicilio?: string;
+  localidad?: string;
+  foto?: File;
+}
