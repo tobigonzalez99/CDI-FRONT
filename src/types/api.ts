@@ -22,3 +22,27 @@ export interface ApiError<TCode extends string = string> {
   /** Errores por campo, para mapear a React Hook Form con setError. */
   fieldErrors?: Record<string, string[]>;
 }
+
+/**
+ * Códigos de error que devuelve la API. Son estables: el frontend decide
+ * según `code`, nunca según el texto del mensaje.
+ */
+export const API_ERROR_CODES = [
+  "VALIDATION_ERROR",
+  "BAD_REQUEST",
+  "INVALID_CREDENTIALS",
+  "ACCOUNT_DISABLED",
+  "PASSWORD_CHANGE_REQUIRED",
+  "WEAK_PASSWORD",
+  "SESSION_EXPIRED",
+  "UNAUTHORIZED",
+  "FORBIDDEN",
+  "NOT_FOUND",
+  "CONFLICT",
+  "PAYLOAD_TOO_LARGE",
+  "UNSUPPORTED_MEDIA_TYPE",
+  "TOO_MANY_REQUESTS",
+  "INTERNAL_ERROR",
+] as const;
+
+export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
