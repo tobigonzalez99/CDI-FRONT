@@ -1,10 +1,13 @@
 /**
- * Actividad del club (Fútbol, Patín, Colonia de Verano) y sus categorías.
+ * Actividad del club: cada ítem del menú "Disciplinas", que reemplaza al
+ * viejo menú "Fútbol".
  *
- * Reemplaza al menú estático "Fútbol" por "Disciplinas": ahora el árbol viene
- * del backend, así que agregar una actividad no requiere tocar el código del
- * frontend. Es auto-referenciada con un solo nivel: una categoría no tiene
- * subcategorías.
+ * Es una **lista plana**: las categorías de fútbol (Masculino, Femenino,
+ * Escuelita, Inferiores) conviven al mismo nivel que Patín y la Colonia de
+ * Verano, todas colgando de la misma entrada desplegable.
+ *
+ * El árbol ya no se escribe a mano en `nav-config.ts`: viene de
+ * `GET /disciplinas`, así que sumar una actividad no toca el código.
  */
 export interface Disciplina {
   id: string;
@@ -19,10 +22,6 @@ export interface Disciplina {
   activa: boolean;
   /** Orden en el menú; a igualdad, alfabético. */
   orden: number;
-  /** `null` en las principales; apunta al padre en las categorías. */
-  parentId: string | null;
-  /** Presente en el listado y el detalle; ausente dentro de una categoría. */
-  categorias?: Disciplina[];
 }
 
 export interface CreateDisciplinaInput {
@@ -34,8 +33,6 @@ export interface CreateDisciplinaInput {
   imagenUrl?: string | null;
   activa?: boolean;
   orden?: number;
-  /** Con `parentId` se crea una categoría dentro de esa disciplina. */
-  parentId?: string | null;
 }
 
 export type UpdateDisciplinaInput = Partial<CreateDisciplinaInput>;
