@@ -5,6 +5,7 @@ import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CambiarPasswordCard } from "@/features/auth/components/cambiar-password-card";
+import { HistorialPagosCard } from "@/features/pagos/components/historial-pagos-card";
 import { CarnetSocioCard } from "@/features/socios/components/carnet-socio";
 import { DatosPersonales } from "@/features/socios/components/datos-personales";
 import { useMiPerfil } from "@/features/socios/hooks/use-mi-perfil";
@@ -73,6 +74,8 @@ export function MiPerfil() {
       )}
 
       <DatosPersonales socio={socio} />
+
+      <HistorialPagosCard />
 
       <CambiarPasswordCard />
     </div>
