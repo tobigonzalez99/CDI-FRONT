@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { KeyRound, LoaderCircle } from "lucide-react";
+import { Clock, KeyRound, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/shared/password-input";
 import { useCambiarPassword } from "@/features/auth/hooks/use-auth-mutations";
-import { aplicarFieldErrors, mensajeDeError } from "@/lib/api/errors";
+import { aplicarFieldErrors, esApiError, mensajeDeError } from "@/lib/api/errors";
 import {
   changePasswordSchema,
   type ChangePasswordFormValues,
@@ -28,6 +28,12 @@ const CAMPOS = ["currentPassword", "newPassword", "confirmPassword"] as const;
 /** HU-05: cambio voluntario de contraseña desde "Mi Perfil". */
 export function CambiarPasswordCard() {
   const [abierto, setAbierto] = useState(false);
+  /**
+   * Límite de 2 cambios cada 30 días (`PASSWORD_CHANGE_LIMIT`, 429).
+   * No va en un toast: el mensaje del backend dice desde cuándo podrá volver a
+   * cambiarla, y eso tiene que quedar a la vista, no desaparecer solo.
+   */
+  const [limiteAlcanzado, setLimiteAlcanzado] = useState<string | null>(null);
   const currentId = useId();
   const nuevaId = useId();
   const confirmarId = useId();
@@ -50,8 +56,15 @@ export function CambiarPasswordCard() {
       await cambiar(valores);
       reset();
       setAbierto(false);
+      setLimiteAlcanzado(null);
       toast.success("Tu contraseña quedó actualizada");
     } catch (error) {
+      if (esApiError(error) && error.code === "PASSWORD_CHANGE_LIMIT") {
+        setLimiteAlcanzado(error.message);
+        reset();
+        setAbierto(false);
+        return;
+      }
       if (!aplicarFieldErrors(error, setError, [...CAMPOS])) {
         toast.error("No pudimos cambiar la contraseña", {
           description: mensajeDeError(error),
@@ -80,8 +93,23 @@ export function CambiarPasswordCard() {
       </CardHeader>
 
       <CardContent>
+        {limiteAlcanzado && (
+          <p
+            role="alert"
+            className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm"
+          >
+            <Clock className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+            {limiteAlcanzado}
+          </p>
+        )}
+
         {!abierto ? (
-          <Button type="button" variant="outline" onClick={alternar}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={alternar}
+            disabled={Boolean(limiteAlcanzado)}
+          >
             Cambiar contraseña
           </Button>
         ) : (
