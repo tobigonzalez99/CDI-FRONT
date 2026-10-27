@@ -31,6 +31,28 @@ export function formatearMonto(monto: number): string {
   return formatoPesos.format(monto);
 }
 
+const formatoPesosCompacto = new Intl.NumberFormat("es-AR", {
+  style: "currency",
+  currency: "ARS",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+/** Para ejes y lugares angostos: "$20 mil" en vez de "$ 20.000". */
+export function formatearMontoCompacto(monto: number): string {
+  return formatoPesosCompacto.format(monto);
+}
+
+/** `2026-10` → "octubre de 2026". Los meses del resumen vienen sin día. */
+export function formatearMes(mes: string): string {
+  return format(parseISO(`${mes}-01`), "MMMM 'de' yyyy", { locale: es });
+}
+
+/** Versión corta para los ejes: `2026-10` → "oct 26". */
+export function formatearMesCorto(mes: string): string {
+  return format(parseISO(`${mes}-01`), "MMM yy", { locale: es });
+}
+
 /** Días que faltan para una fecha; negativo si ya pasó. */
 export function diasHasta(fecha: ISODateString, hoy = new Date()): number {
   const objetivo = parseISO(fecha);

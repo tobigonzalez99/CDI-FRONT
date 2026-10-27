@@ -16,6 +16,9 @@
   --color-brand-red-soft: var(--brand-red-soft);
   --color-brand-black: var(--brand-black);
   --color-brand-graphite: var(--brand-graphite);
+  /* Color de las marcas de los gráficos (ver --chart-mark). */
+  --color-chart-mark: var(--chart-mark);
+  --color-chart-track: var(--chart-track);
   /* Estados de cuota del socio (HU-04) */
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
@@ -79,6 +82,16 @@
   --brand-black: #0e0e10;
   --brand-graphite: #1a1a1d;
 
+  /*
+   * Marca de los gráficos. Un solo tono: las barras codifican magnitud, no
+   * identidad, y cada una va rotulada. Ambos valores están verificados con el
+   * validador de paletas (banda de luminosidad, croma y contraste ≥ 3:1 contra
+   * su superficie); el rojo pleno no pasa sobre fondo oscuro, por eso el modo
+   * oscuro usa un paso más claro.
+   */
+  --chart-mark: #d41f26;
+  --chart-track: oklch(0.93 0 0);
+
   --success: oklch(0.6 0.15 150);
   --success-foreground: oklch(0.985 0 0);
   --warning: oklch(0.577 0.245 27.325);
@@ -119,6 +132,8 @@
 }
 
 .dark {
+  --chart-mark: #f0484e;
+  --chart-track: oklch(0.28 0 0);
   --success: oklch(0.7 0.15 150);
   --success-foreground: oklch(0.145 0 0);
   --warning: oklch(0.704 0.191 22.216);

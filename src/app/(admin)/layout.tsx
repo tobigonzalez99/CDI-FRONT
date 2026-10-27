@@ -1,4 +1,5 @@
 import { Navbar } from "@/components/shared/navbar/navbar";
+import { AdminNav } from "@/features/admin/components/admin-nav";
 import { RequireAuth } from "@/features/auth/components/require-auth";
 
 /**
@@ -10,7 +11,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <>
       <Navbar />
       <main className="flex-1 container mx-auto px-4 py-8">
-        <RequireAuth roles={["ADMIN"]}>{children}</RequireAuth>
+        <RequireAuth roles={["ADMIN"]}>
+          <div className="space-y-6">
+            <AdminNav />
+            {children}
+          </div>
+        </RequireAuth>
       </main>
     </>
   );
