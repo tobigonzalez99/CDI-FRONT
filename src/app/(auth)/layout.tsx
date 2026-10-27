@@ -1,4 +1,4 @@
-import { Navbar } from "@/components/shared/navbar/navbar";
+import { Navbar } from "@/components/shared/navbar";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (

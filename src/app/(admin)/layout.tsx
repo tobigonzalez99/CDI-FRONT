@@ -1,4 +1,4 @@
-import { Navbar } from "@/components/shared/navbar/navbar";
+import { Navbar } from "@/components/shared/navbar";
 import { AdminNav } from "@/features/admin/components/admin-nav";
 import { RequireAuth } from "@/features/auth/components/require-auth";
 

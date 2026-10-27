@@ -14,14 +14,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { ClubLogo } from "@/components/shared/club-logo";
 import { cn } from "@/lib/utils";
-import { hasChildren, NAV_ENTRIES } from "./nav-config";
+import { hasChildren, type NavEntry } from "./nav-config";
 
 interface MobileNavProps {
+  /** Mismo árbol que el menú de escritorio, ya con las disciplinas colgadas. */
+  entradas: NavEntry[];
   onLoginClick: () => void;
   isActive: (href: string) => boolean;
 }
 
-export function MobileNav({ onLoginClick, isActive }: MobileNavProps) {
+export function MobileNav({ entradas, onLoginClick, isActive }: MobileNavProps) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const submenuId = useId();
@@ -50,7 +52,7 @@ export function MobileNav({ onLoginClick, isActive }: MobileNavProps) {
         </SheetHeader>
 
         <nav aria-label="Navegación principal" className="flex flex-col gap-1 p-4">
-          {NAV_ENTRIES.map((entry) => {
+          {entradas.map((entry) => {
             if (!hasChildren(entry)) {
               return (
                 <Link

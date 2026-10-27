@@ -18,17 +18,38 @@ import { Button } from "@/components/ui/button";
 import { ClubLogo } from "@/components/shared/club-logo";
 import { LoginDialog } from "@/features/auth/components/login-dialog";
 import { cn } from "@/lib/utils";
-import { hasChildren, NAV_ENTRIES } from "./nav-config";
+import {
+  DISCIPLINAS_HREF,
+  hasChildren,
+  NAV_ENTRIES,
+  type NavEntry,
+  type NavItem,
+} from "./nav-config";
 import { MobileNav } from "./mobile-nav";
 import { SponsorsBar } from "./sponsors-bar";
 
 const linkStyles =
   "rounded-md px-3 py-2 text-sm font-medium text-white/85 transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-red-soft focus-visible:outline-none";
 
-export function Navbar() {
+/**
+ * Cuelga las disciplinas de su entrada del menú.
+ * Si la lista viene vacía (API caída), "Disciplinas" queda como un enlace
+ * común en vez de un desplegable sin nada adentro.
+ */
+export function armarEntradas(disciplinas: NavItem[]): NavEntry[] {
+  return NAV_ENTRIES.map((entrada) =>
+    entrada.href === DISCIPLINAS_HREF && disciplinas.length > 0
+      ? { ...entrada, children: disciplinas }
+      : entrada,
+  );
+}
+
+export function Navbar({ disciplinas = [] }: { disciplinas?: NavItem[] }) {
   const [loginOpen, setLoginOpen] = useState(false);
   const pathname = usePathname();
   const { user } = useSession();
+
+  const entradas = armarEntradas(disciplinas);
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
@@ -57,7 +78,7 @@ export function Navbar() {
               aria-label="Navegación principal"
               className="mx-auto hidden items-center gap-1 md:flex"
             >
-              {NAV_ENTRIES.map((entry) => {
+              {entradas.map((entry) => {
                 if (!hasChildren(entry)) {
                   return (
                     <Link
@@ -71,7 +92,9 @@ export function Navbar() {
                   );
                 }
 
-                const sectionActive = entry.children.some((child) => isActive(child.href));
+                // También activa en el índice (/disciplinas), no solo en sus hijas.
+                const sectionActive =
+                  isActive(entry.href) || entry.children.some((child) => isActive(child.href));
 
                 return (
                   <DropdownMenu key={entry.label}>
@@ -129,7 +152,11 @@ export function Navbar() {
                 </Button>
               )}
 
-              <MobileNav onLoginClick={() => setLoginOpen(true)} isActive={isActive} />
+              <MobileNav
+                entradas={entradas}
+                onLoginClick={() => setLoginOpen(true)}
+                isActive={isActive}
+              />
             </div>
           </div>
         </div>

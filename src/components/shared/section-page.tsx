@@ -2,12 +2,17 @@ import Link from "next/link";
 import { ChevronRight, Construction, Home } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
-import { construirMigas } from "@/components/shared/navbar/nav-config";
+import { construirMigas, type Miga } from "@/components/shared/navbar/nav-config";
 import { cn } from "@/lib/utils";
 
 interface SectionPageProps {
-  /** Ruta de esta sección; de acá salen el título y las migas. */
+  /** Ruta de esta sección; de acá salen las migas del menú fijo. */
   href: string;
+  /**
+   * Migas explícitas, para secciones que no están en el menú fijo: las
+   * disciplinas vienen de la API y sus nombres no se conocen al compilar.
+   */
+  migas?: Miga[];
   title: string;
   /** Bajada opcional bajo el título. */
   description?: string;
@@ -22,8 +27,14 @@ interface SectionPageProps {
  * Mientras no haya contenido cargado muestra un estado vacío en lugar de una
  * página en blanco, para que se note que la sección existe y está en curso.
  */
-export function SectionPage({ href, title, description, children }: SectionPageProps) {
-  const migas = construirMigas(href);
+export function SectionPage({
+  href,
+  migas: migasExplicitas,
+  title,
+  description,
+  children,
+}: SectionPageProps) {
+  const migas = migasExplicitas ?? construirMigas(href);
 
   return (
     <>

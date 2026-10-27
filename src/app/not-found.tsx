@@ -2,18 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Home, Search } from "lucide-react";
 
-import { Navbar } from "@/components/shared/navbar/navbar";
+import { Navbar } from "@/components/shared/navbar";
 import { Footer } from "@/components/shared/footer";
 import { buttonVariants } from "@/components/ui/button";
-import { hasChildren, NAV_ENTRIES } from "@/components/shared/navbar/nav-config";
+import { NAV_ENTRIES } from "@/components/shared/navbar/nav-config";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Página no encontrada" };
 
 /** Sugerencias de navegación: las secciones principales del menú. */
-const secciones = NAV_ENTRIES.map((entry) =>
-  hasChildren(entry) ? { label: entry.label, href: entry.href } : entry,
-);
+const secciones = NAV_ENTRIES;
 
 /**
  * 404 global.
@@ -62,14 +60,14 @@ export default function NotFound() {
             </Link>
 
             <Link
-              href="/futbol"
+              href="/disciplinas"
               className={cn(
                 buttonVariants({ size: "lg", variant: "outline" }),
                 "h-12 border-white/25 bg-transparent px-7 text-base text-white hover:bg-white/10 hover:text-white",
               )}
             >
               <Search className="size-4" aria-hidden />
-              Ver las categorías
+              Ver las disciplinas
             </Link>
           </div>
 

@@ -10,7 +10,11 @@ import {
   XIcon,
   YoutubeIcon,
 } from "@/components/shared/social-icons";
-import { hasChildren, NAV_ENTRIES } from "@/components/shared/navbar/nav-config";
+import {
+  disciplinasComoNavItems,
+  NAV_ENTRIES,
+} from "@/components/shared/navbar/nav-config";
+import { obtenerDisciplinas } from "@/features/disciplinas/api/disciplinas.api";
 import {
   direccionSede,
   mapEmbedUrl,
@@ -30,11 +34,11 @@ const socialLinks = [
 ].filter((link): link is typeof link & { href: string } => Boolean(link.href));
 
 /** Enlaces del menú aplanados: las subsecciones de Fútbol se listan sueltas. */
-const footerLinks = NAV_ENTRIES.flatMap((entry) =>
-  hasChildren(entry) ? entry.children : [entry],
-);
+export async function Footer() {
+  // Las disciplinas se listan sueltas, como es habitual en un pie de página.
+  const disciplinas = await obtenerDisciplinas();
+  const footerLinks = [...NAV_ENTRIES, ...disciplinasComoNavItems(disciplinas)];
 
-export function Footer() {
   const year = new Date().getFullYear();
 
   return (
