@@ -100,7 +100,12 @@ export function SectionPage({
   );
 }
 
-function EstadoVacio() {
+/**
+ * Lo que se ve mientras la sección no tiene contenido cargado. Exportado
+ * porque una sección puede tener algo propio —la foto de una disciplina— y
+ * aun así seguir esperando su texto.
+ */
+export function EstadoVacio() {
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center rounded-2xl border border-dashed border-border px-6 py-14 text-center">
       <Construction className="size-8 text-brand-red" aria-hidden />

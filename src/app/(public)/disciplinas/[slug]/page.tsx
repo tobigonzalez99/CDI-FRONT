@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 
-import { SectionPage } from "@/components/shared/section-page";
+import { EstadoVacio, SectionPage } from "@/components/shared/section-page";
 import {
   hrefDeDisciplina,
   migasDeDisciplina,
@@ -40,8 +41,9 @@ export default async function DisciplinaPage({
   if (!disciplina) notFound();
 
   // El texto de cada actividad no vive en `paginas`: es un campo propio de la
-  // disciplina. Mientras esté vacío, la sección muestra su estado vacío.
+  // disciplina, igual que su imagen.
   const contenido = disciplina.contenido?.trim();
+  const { imagenUrl } = disciplina;
 
   return (
     <SectionPage
@@ -50,7 +52,33 @@ export default async function DisciplinaPage({
       title={disciplina.nombre}
       description={disciplina.descripcion ?? undefined}
     >
-      {contenido ? <ContenidoMarkdown texto={contenido} /> : undefined}
+      {contenido || imagenUrl ? (
+        <>
+          {imagenUrl && (
+            // Ilustra una sección que el encabezado ya nombra, así que va sin
+            // texto alternativo: repetirlo solo haría ruido en un lector.
+            <div className="relative mx-auto mb-12 aspect-video w-full max-w-3xl overflow-hidden rounded-2xl bg-muted">
+              <Image
+                src={imagenUrl}
+                alt=""
+                fill
+                sizes="(min-width: 768px) 48rem, 100vw"
+                className="object-cover"
+                /*
+                  En desarrollo el backend es localhost, y el optimizador de
+                  Next rechaza los hosts que resuelven a una IP privada por
+                  SSRF. Servirla sin optimizar evita bajarle la guardia al
+                  optimizador; en producción, con un dominio real, se optimiza
+                  como cualquier otra.
+                */
+                unoptimized={process.env.NODE_ENV !== "production"}
+              />
+            </div>
+          )}
+
+          {contenido ? <ContenidoMarkdown texto={contenido} /> : <EstadoVacio />}
+        </>
+      ) : undefined}
     </SectionPage>
   );
 }

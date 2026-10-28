@@ -49,5 +49,3 @@ export const PAGINAS = {
 
 export type SlugPagina = (typeof PAGINAS)[keyof typeof PAGINAS];
 
-/** @deprecated Usar `PAGINAS.proyectos`. Se mantiene para no romper /proyectos. */
-export const PAGINA_PROYECTOS = PAGINAS.proyectos;
