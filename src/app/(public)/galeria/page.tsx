@@ -1,15 +1,25 @@
-import type { Metadata } from "next";
+import { SeccionEditable } from "@/features/paginas/components/seccion-editable";
+import { metadataDeSeccion } from "@/features/paginas/metadata";
+import { PAGINAS } from "@/types/pagina";
 
-import { SectionPage } from "@/components/shared/section-page";
+const POR_DEFECTO = {
+  titulo: "Galería",
+  resumen: "Fotos y videos de los partidos, los planteles y la vida del club.",
+};
 
-export const metadata: Metadata = { title: "Galería" };
+export const generateMetadata = () =>
+  metadataDeSeccion(PAGINAS.galeria, {
+    title: POR_DEFECTO.titulo,
+    description: POR_DEFECTO.resumen,
+  });
 
+/**
+ * Por ahora la galería es texto editable como el resto. Cuando se defina qué
+ * lleva —fotos, álbumes, videos— va a necesitar su propio modelo en el
+ * backend, y entonces las imágenes se suman como contenido propio debajo.
+ */
 export default function GaleriaPage() {
   return (
-    <SectionPage
-      href="/galeria"
-      title="Galería"
-      description="Fotos y videos de los partidos, los planteles y la vida del club."
-    />
+    <SeccionEditable slug={PAGINAS.galeria} href="/galeria" porDefecto={POR_DEFECTO} />
   );
 }
