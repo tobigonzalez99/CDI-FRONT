@@ -46,6 +46,7 @@ export default async function ProyectosPage() {
   }
 
   const { pagina } = resultado;
+  const contenido = pagina.contenido.trim();
 
   return (
     <SectionPage
@@ -53,11 +54,20 @@ export default async function ProyectosPage() {
       title={pagina.titulo}
       description={pagina.resumen ?? undefined}
     >
-      <ContenidoMarkdown texto={pagina.contenido} />
+      {/*
+        Publicada pero todavía sin texto: `undefined` deja que SectionPage
+        muestre el mismo "estamos preparando esta sección" que el resto del
+        sitio, en vez de una página en blanco.
+      */}
+      {contenido ? (
+        <>
+          <ContenidoMarkdown texto={contenido} />
 
-      <p className="mx-auto mt-12 max-w-3xl text-sm text-muted-foreground">
-        Actualizado el {formatearFecha(pagina.updatedAt)}.
-      </p>
+          <p className="mx-auto mt-12 max-w-3xl text-sm text-muted-foreground">
+            Actualizado el {formatearFecha(pagina.updatedAt)}.
+          </p>
+        </>
+      ) : undefined}
     </SectionPage>
   );
 }
