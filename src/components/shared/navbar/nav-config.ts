@@ -17,6 +17,7 @@ export function hasChildren(entry: NavEntry): entry is NavSection {
 }
 
 export const DISCIPLINAS_HREF = "/disciplinas";
+export const PROYECTOS_HREF = "/proyectos";
 
 /**
  * Menú público.
@@ -29,6 +30,7 @@ export const NAV_ENTRIES: NavEntry[] = [
   { label: "Historia", href: "/historia" },
   { label: "Galería", href: "/galeria" },
   { label: "Disciplinas", href: DISCIPLINAS_HREF },
+  { label: "Proyectos", href: PROYECTOS_HREF },
   { label: "Socio", href: "/socio" },
 ];
 
@@ -50,7 +52,11 @@ export interface Miga {
   href: string;
 }
 
-const INICIO: Miga = { label: "Inicio", href: "/" };
+/**
+ * Inicio no está en NAV_ENTRIES porque no es una sección: es la raíz. Lo usan
+ * las migas de pan y, como primer ítem, el menú de navegación.
+ */
+export const INICIO = { label: "Inicio", href: "/" } as const satisfies NavItem;
 
 /**
  * Ruta de migas de pan para una sección del menú fijo.

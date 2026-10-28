@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import {
   DISCIPLINAS_HREF,
   hasChildren,
+  INICIO,
   NAV_ENTRIES,
   type NavEntry,
   type NavItem,
@@ -32,16 +33,23 @@ const linkStyles =
   "rounded-md px-3 py-2 text-sm font-medium text-white/85 transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-red-soft focus-visible:outline-none";
 
 /**
- * Cuelga las disciplinas de su entrada del menú.
- * Si la lista viene vacía (API caída), "Disciplinas" queda como un enlace
- * común en vez de un desplegable sin nada adentro.
+ * Arma el menú: "Inicio" adelante y las disciplinas colgadas de su entrada.
+ *
+ * "Inicio" va explícito aunque el escudo ya lleve a la portada: tocar el
+ * logo es una convención que no todo el mundo conoce, y quedarse sin salida
+ * es peor que repetir un enlace.
+ *
+ * Si la lista de disciplinas viene vacía (API caída), "Disciplinas" queda
+ * como un enlace común en vez de un desplegable sin nada adentro.
  */
 export function armarEntradas(disciplinas: NavItem[]): NavEntry[] {
-  return NAV_ENTRIES.map((entrada) =>
+  const secciones = NAV_ENTRIES.map((entrada) =>
     entrada.href === DISCIPLINAS_HREF && disciplinas.length > 0
       ? { ...entrada, children: disciplinas }
       : entrada,
   );
+
+  return [INICIO, ...secciones];
 }
 
 export function Navbar({ disciplinas = [] }: { disciplinas?: NavItem[] }) {
@@ -66,7 +74,7 @@ export function Navbar({ disciplinas = [] }: { disciplinas?: NavItem[] }) {
               aria-label="Club Deportivo Independencia, ir al inicio"
               className="flex shrink-0 items-center gap-2.5 rounded-md focus-visible:ring-2 focus-visible:ring-brand-red-soft focus-visible:outline-none"
             >
-              <ClubLogo className="h-10" />
+              <ClubLogo className="h-10" priority />
               <span className="hidden font-heading text-sm leading-tight font-bold text-white lg:block">
                 Club Deportivo
                 <br />
