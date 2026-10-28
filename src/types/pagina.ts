@@ -17,6 +17,10 @@ export interface Pagina {
    * Cuerpo en **Markdown, no HTML**: lo escribe una persona desde el panel, y
    * volcarlo con `innerHTML` permitiría inyectar scripts. Renderizarlo como
    * Markdown o como texto plano.
+   *
+   * **Vacío (`""`) es un estado esperado**, no un error: la sección existe y
+   * está publicada, pero el club todavía no pasó el texto. Mostrar ahí el
+   * estado vacío de la sección.
    */
   contenido: string;
   /** Una página despublicada responde 404 en el sitio público. */
@@ -32,5 +36,18 @@ export interface UpdatePaginaInput {
   publicada?: boolean;
 }
 
-/** Slugs de las páginas que existen hoy. */
-export const PAGINA_PROYECTOS = "proyectos";
+/**
+ * Slugs de las secciones que sirve el backend. El texto de las disciplinas
+ * no está acá: va en `disciplina.contenido`.
+ */
+export const PAGINAS = {
+  proyectos: "proyectos",
+  historia: "historia",
+  galeria: "galeria",
+  socio: "socio",
+} as const;
+
+export type SlugPagina = (typeof PAGINAS)[keyof typeof PAGINAS];
+
+/** @deprecated Usar `PAGINAS.proyectos`. Se mantiene para no romper /proyectos. */
+export const PAGINA_PROYECTOS = PAGINAS.proyectos;
