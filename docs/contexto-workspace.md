@@ -40,7 +40,7 @@ CDI/
 | Swagger | `http://localhost:4000/api/docs` (solo fuera de producción) |
 | Auth | `POST /auth/login` con `{ dni, password }`. El JWT viaja en **cookie httpOnly** (`cdi_access_token`); la respuesta es `{ user: AuthUser, expiresAt }`. CORS con `credentials: true` → el frontend usa `withCredentials`. |
 | Primer ingreso | `AuthUser.mustChangePassword === true` → frontend redirige a `/cambiar-password`; backend bloquea el resto de endpoints (código `PASSWORD_CHANGE_REQUIRED`). |
-| Cambio de clave | Forzado (HU-03): `{ newPassword, confirmPassword }`. Voluntario (HU-05): agrega `currentPassword`. Política: 8–72 caracteres, al menos una letra y un número. |
+| Cambio de clave | Forzado (HU-03): `{ newPassword, confirmPassword }`. Voluntario (HU-05): agrega `currentPassword`. Política: 8–72 caracteres, al menos una letra y un número. **Máximo 2 cambios voluntarios cada 30 días** (`PASSWORD_CHANGE_LIMIT`, 429); el forzado no cuenta. |
 | Roles | `ADMIN` \| `SOCIO` |
 | Socio | `nombre` y `apellido` separados; `dni` string (7–8 dígitos); fechas `YYYY-MM-DD`; `vigencia: { desde, hasta }` inclusive. |
 | Estado socio | `ALTA` \| `BAJA` (administrativo, persistido). Además soft delete (`deletedAt`). |
@@ -74,6 +74,7 @@ se emite un token nuevo, así que conviene refrescar la sesión con la respuesta
 | PATCH | `/socios/:id/baja` · `/alta` | ADMIN | Cambia `estado`; reversible |
 | DELETE | `/socios/:id` | ADMIN | Baja lógica (`deletedAt`), `204` |
 | GET | `/perfil/me` | SOCIO | HU-04. Ficha propia + `estadoCuota` |
+| PATCH | `/perfil/me` | SOCIO | Edita **solo** teléfono, domicilio, localidad y foto |
 | GET · POST | `/tipos-socio` | ADMIN | HU-09. `?soloActivos=true` para el selector del alta |
 | GET · PATCH | `/tipos-socio/:id` | ADMIN | Desactivar saca el tipo de las altas nuevas sin tocar a sus socios |
 
@@ -88,11 +89,154 @@ en la base se guarda solo la ruta relativa.
 > `passwordInicial` se devuelve **una única vez**, al crear el socio. No hay forma de
 > volver a consultarla: el admin tiene que copiarla y entregarla en ese momento.
 
+### Solicitudes de alta — "Hacete socio" (implementado)
+
+Una persona se postula desde el sitio público; el alta **no** se efectúa hasta que un
+administrador la aprueba. La tabla guarda **solo solicitudes pendientes**: aprobar crea
+el socio y borra la solicitud; rechazar borra los datos y la foto.
+
+| Método | Ruta | Acceso | Notas |
+|---|---|---|---|
+| GET | `/tipos-socio/disponibles` | **público** | Categorías activas, para el selector del formulario |
+| POST | `/solicitudes` | **público** | `multipart/form-data`. Máx. 3 envíos por minuto y por IP |
+| GET | `/solicitudes` | ADMIN | Paginado, más antiguas primero. Devuelve la tarjeta completa |
+| GET | `/solicitudes/pendientes/total` | ADMIN | `{ pendientes: n }` para el indicador del panel |
+| GET | `/solicitudes/:id` | ADMIN | |
+| POST | `/solicitudes/:id/aprobar` | ADMIN | "Dar de alta". Devuelve `{ socio, passwordInicial }`. Cuerpo opcional: `tipoSocioId`, `vigencia` |
+| DELETE | `/solicitudes/:id` | ADMIN | "Rechazar solicitud". Borra datos y foto, `204` |
+
+**Campos del formulario — todos obligatorios menos `comentario`:** `nombre`, `apellido`,
+`dni`, `email`, `domicilio`, `localidad`, `telefono`, `fechaNacimiento`, `tipoSocioId`
+y `foto` (archivo). Aprobar sin cuerpo usa la categoría solicitada y una vigencia de un
+mes desde hoy.
+
+### Datos únicos por persona
+
+| Único | Por qué |
+|---|---|
+| `id` (UUID) | Identificador interno |
+| `dni` | Identifica legalmente a la persona; además es el usuario de ingreso |
+| `email` | Canal de contacto y futura recuperación de contraseña: con dos iguales no se sabría a quién corresponde cada aviso |
+| `numeroSocio` | Número de carnet |
+
+**Pueden repetirse:** nombre, apellido, domicilio, localidad, fecha de nacimiento y
+**teléfono** — una familia comparte el fijo, y un padre puede dejar su celular en la
+ficha de sus hijos menores; exigirlo único bloquearía altas legítimas.
+
+El DNI y el email se validan contra los socios registrados **y** contra las demás
+solicitudes pendientes, y el conflicto llega en `fieldErrors` indicando cuál de los dos
+casos es. Un socio dado de baja lógicamente **sigue ocupando** su DNI y su correo
+(igual que el índice único de la base): para reincorporarlo hay que restaurar su ficha,
+no crear otra.
+
+### Cobranza de cuotas (implementado)
+
+| Método | Ruta | Acceso | Notas |
+|---|---|---|---|
+| POST | `/pagos` | ADMIN | Registra el cobro **y extiende la vigencia** en una transacción |
+| GET | `/pagos` | ADMIN | Filtros: `socioId`, `cuentaId`, `medioPago`, `desde`, `hasta`, `anulacion` |
+| GET | `/pagos/resumen` | ADMIN | Ingresos por mes, acumulado y desglose por medio y por cuenta |
+| GET | `/pagos/:id` | ADMIN | |
+| PATCH | `/pagos/:id/anular` | ADMIN | Motivo obligatorio. Devuelve `requiereRevisarVigencia` |
+| GET | `/pagos/socio/:socioId` | ADMIN | Historial de un socio + `totalCobrado` y `pagosVigentes` |
+| GET | `/pagos/mios` | SOCIO | Su historial de pagos. **Acepta los mismos filtros que `/pagos`**, incluido `anulacion` |
+| GET · POST | `/cuentas` | ADMIN | `?soloActivas=true` para el selector de cobro |
+| GET · PATCH | `/cuentas/:id` | ADMIN | Desactivar la saca de cobros nuevos sin tocar los pagos ya hechos |
+
+**Período que cubre un pago.** Si la cuota sigue vigente, arranca el día siguiente al
+vencimiento (pagar por adelantado suma, no pisa lo ya pago); si ya venció, arranca hoy
+(el club no cobra retroactivo). Dura `meses` (1 por defecto, hasta 24). La vigencia del
+socio **nunca se acorta**: un pago viejo cargado tarde no empeora su situación.
+
+**Reglas del registro contable:**
+
+- Un pago **no se edita ni se borra**: se anula con motivo, y queda con quién lo anuló
+  y cuándo. Sigue consultable con `?anulacion=anulados`.
+- Los **totales se calculan** sobre los pagos vigentes; no hay ningún acumulado guardado
+  que pueda desfasarse.
+- Montos en `numeric`, nunca en punto flotante.
+- Queda asentado **quién registró** cada cobro.
+- Anular **no revierte la vigencia**: puede estar sostenida por otros pagos y adivinar
+  cuál corresponde llevaría a errores silenciosos. La respuesta avisa con
+  `requiereRevisarVigencia` y el admin la ajusta desde la ficha del socio.
+- No se aceptan cobros con fecha futura ni montos menores o iguales a cero.
+
+> **`anulacion` en `/pagos/mios`:** por defecto los listados excluyen los pagos anulados.
+> El perfil del socio llama a `/pagos/mios?anulacion=todos` a propósito, para que pueda
+> ver que un cobro suyo fue dado de baja y por qué. Sin eso no podría distinguir
+> "no me lo registraron" de "me lo registraron y lo anularon". **No quitar ese filtro
+> del endpoint por parecer sin uso.**
+
+### Disciplinas (implementado)
+
+Actividades del club. Reemplazan al menú "Fútbol" por **"Disciplinas"**, que despliega
+las seis como una **lista plana**, sin agrupar: las categorías de fútbol conviven al
+mismo nivel que patín y la colonia.
+
+| Método | Ruta | Acceso | Notas |
+|---|---|---|---|
+| GET | `/disciplinas` | **público** | Lista en el orden del menú. `?todas=true` incluye las inactivas |
+| GET | `/disciplinas/:slug` | **público** | Detalle por slug (ej: `/disciplinas/patin`) |
+| POST | `/disciplinas` | ADMIN | El slug se genera del nombre si no se envía |
+| PATCH | `/disciplinas/:id` | ADMIN | `activa: false` la saca del sitio sin borrarla |
+| DELETE | `/disciplinas/:id` | ADMIN | `204` |
+
+El `slug` se genera del nombre quitando tildes ("Colonia de Verano" →
+`colonia-de-verano`) y es único; al renombrar se regenera, salvo que se haya fijado a
+mano. El orden del menú lo da `orden` y, a igualdad, el nombre.
+
+Iniciales (semilla, en ese orden): **Fútbol Masculino**, **Fútbol Femenino**,
+**Escuelita**, **Inferiores**, **Patín** y **Colonia de Verano**.
+
+### Páginas institucionales (implementado)
+
+Secciones de contenido del sitio. Slugs actuales: **`proyectos`**, **`historia`**,
+**`galeria`** y **`socio`**. El texto de cada disciplina va en `disciplinas.contenido`,
+no acá.
+
+| Método | Ruta | Acceso | Notas |
+|---|---|---|---|
+| GET | `/paginas/:slug` | **público** | Ej: `/paginas/proyectos`. Una página despublicada responde 404 |
+| GET | `/paginas` | ADMIN | Listado, incluye las despublicadas |
+| PATCH | `/paginas/:slug` | ADMIN | Edita `titulo`, `resumen`, `contenido` y `publicada` |
+
+**No hay alta ni baja a propósito:** cada página necesita su ruta en el frontend, y
+dejar crearlas desde el panel generaría contenido que ninguna página muestra. Las crea
+la semilla; desde el panel solo se edita. Por el mismo motivo el `slug` no es editable.
+
+> ⚠️ **`contenido` es Markdown, no HTML.** Lo escribe una persona desde el panel:
+> volcarlo con `innerHTML` permitiría inyectar scripts. Renderizarlo como Markdown
+> o como texto plano.
+
+**`contenido` vacío (`""`) es un estado válido y esperado:** significa que la sección
+existe y está publicada pero el club todavía no pasó el texto. El sitio muestra ahí su
+estado vacío. **Nunca rellenar con ejemplos inventados**, que publicados se leen como
+información real del club.
+
+#### Cómo se carga el contenido
+
+Durante el desarrollo el club pasa el texto por chat y se carga en
+`cdi-backend/src/database/seeds/seed-data.ts` (`PAGINAS_SEED`). **Esa lista es la
+fuente de verdad**: así el contenido queda versionado en git y sobrevive a cualquier
+reseteo de la base.
+
+| Comando | Qué hace |
+|---|---|
+| `npm run seed` | Crea las páginas que falten. **Nunca pisa** lo que ya está |
+| `npm run seed:contenido` | Baja el texto de la semilla a la base, **pisando** lo que haya |
+
+Son dos comandos distintos para que el pisado sea siempre deliberado y nunca un efecto
+secundario de sembrar. Cuando el club empiece a editar desde el panel, el criterio se
+invierte: el contenido pasa a vivir en la base y `seed:contenido` deja de usarse.
+La edición desde el panel se mantiene funcionando: es el camino previsto, solo que
+todavía no se usa.
+
 ### Códigos de error
 
 `VALIDATION_ERROR`, `BAD_REQUEST`, `INVALID_CREDENTIALS`, `ACCOUNT_DISABLED`, `PASSWORD_CHANGE_REQUIRED`,
 `WEAK_PASSWORD`, `SESSION_EXPIRED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`,
-`PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `INTERNAL_ERROR`.
+`PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `TOO_MANY_REQUESTS`, `PASSWORD_CHANGE_LIMIT`,
+`INTERNAL_ERROR`.
 
 Qué debe hacer el frontend: `SESSION_EXPIRED`/`UNAUTHORIZED` → mandar a `/login`;
 `PASSWORD_CHANGE_REQUIRED` → mandar a `/cambiar-password`; `VALIDATION_ERROR` → pintar `fieldErrors` en el formulario.
@@ -124,8 +268,15 @@ Credenciales de desarrollo en `.env` (`SEED_ADMIN_*`): DNI `20000001`, clave `Cd
 - `usuarios`: identidad + credenciales (`dni` único, `nombre`, `apellido`, `password_hash`, `rol`, `must_change_password`, `last_login_at`).
 - `socios`: ficha de membresía 1:1 con `usuarios` (`numero_socio` serial, domicilio, localidad, email, teléfono, fecha de nacimiento, `foto_url`, `tipo_socio_id`, `estado`, `vigencia_desde`, `vigencia_hasta`, `deleted_at`). DNI/nombre/apellido se leen del usuario (una sola fuente de verdad).
 - `tipos_socio`: `nombre` único, `descripcion`, `monto_cuota`, `activo`.
+- `cuentas`: destino de los cobros (`nombre` único, `tipo`, `identificador`, `activa`).
+- `cambios_password`: cuándo cambió su clave cada usuario y si fue voluntario (no guarda hashes). Sirve para el límite de 2 cada 30 días.
+- `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, quién registró, y datos de anulación).
+- `paginas`: secciones de contenido editable (`slug` único, `titulo`, `resumen`, `contenido` en Markdown, `publicada`).
+- `disciplinas`: actividades del menú (`slug` único, `orden`, `activa`). Lista plana, sin jerarquía.
+- `solicitudes_socio`: postulaciones pendientes (datos del formulario + `foto_path` + `tipo_socio_id`). `dni` y `email` únicos. Se borra al aprobar o rechazar.
+- `socios.foto_path` guarda la ruta relativa del archivo; la URL pública se arma al responder.
 
 ## Comandos rápidos
 
-Backend (`cdi-backend/`): `npm run start:dev`, `npm test`, `npm run lint`, `npm run migration:generate -- src/database/migrations/<Nombre>`, `npm run migration:run`.
+Backend (`cdi-backend/`): `npm run start:dev`, `npm test`, `npm run lint`, `npm run migration:generate -- src/database/migrations/<Nombre>`, `npm run migration:run`, `npm run seed`, `npm run seed:dev` (datos de prueba para el frontend; credenciales en el README del backend).
 Frontend (`cdi-frontend/`): `npm run dev`, `npm run lint`, `npm run build`.
