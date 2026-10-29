@@ -2,37 +2,33 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Info, RotateCcw } from "lucide-react";
+import QRCode from "react-qr-code";
+import { Info, QrCode, RotateCcw } from "lucide-react";
 
 import carnetBanner from "@/assets/carnet-banner.png";
 import carnetFrente from "@/assets/carnet-frente.png";
 import carnetTextura from "@/assets/carnet-textura.png";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { BotonDescargarCarnet } from "@/features/socios/components/boton-descargar-carnet";
 import { EstadoCuotaBadge } from "@/features/socios/components/estado-cuota-badge";
+import { QrGrandeDialog } from "@/features/socios/components/qr-grande-dialog";
 import { QrPlaceholder } from "@/features/socios/components/qr-placeholder";
+import {
+  AZUL_QR,
+  inicialesDe,
+  LEYENDA_CARNET,
+  ROJO_CARNET,
+} from "@/features/socios/lib/carnet";
 import { diasHasta, formatearVigencia } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import type { CarnetSocio } from "@/types/socio";
-
-/** Rojo de las etiquetas, tomado del diseño original del club. */
-const ROJO_CARNET = "#ed3137";
 
 /** Proporción de las dos caras del diseño, para que no se deformen. */
 const PROPORCION = "1993 / 1107";
 
 /** Aviso cuando la cuota está por vencer, para que no lo tome por sorpresa. */
 const DIAS_PARA_AVISAR = 7;
-
-const LEYENDA =
-  "Este carnet es de uso personal e intransferible. Su uso indebido será penado y " +
-  "habilita su retención. En caso de extravío se deberá abonar su reposición. En caso " +
-  "de hallar este carnet devolverlo al Club Deportivo Independencia en España N°1, " +
-  "7513, Adolfo G. Chaves";
-
-function iniciales(nombre: string, apellido: string): string {
-  return `${nombre.at(0) ?? ""}${apellido.at(0) ?? ""}`.toUpperCase();
-}
 
 /**
  * El nombre y el apellido van en cuerpo grande, pero un apellido largo no
@@ -92,7 +88,7 @@ function Dorso({ socio }: { socio: CarnetSocio }) {
               className="object-cover"
             />
             <AvatarFallback className="rounded-[1.6cqw] text-[6cqw] font-semibold">
-              {iniciales(socio.nombre, socio.apellido)}
+              {inicialesDe(socio.nombre, socio.apellido)}
             </AvatarFallback>
           </Avatar>
 
@@ -127,14 +123,32 @@ function Dorso({ socio }: { socio: CarnetSocio }) {
             </p>
           </div>
 
-          <QrPlaceholder
-            semilla={`CDI-${socio.numeroSocio}`}
-            className="w-[18.6cqw] shrink-0 self-center"
-          />
+          <div className="w-[18.6cqw] shrink-0 self-center">
+            {socio.carnetUrl ? (
+              /*
+                Lo que lleva el QR es un enlace, no el estado del socio: si
+                guardara "está al día" quedaría congelado el día que se generó.
+                El enlace lo arma el backend y acá solo se dibuja.
+              */
+              <QRCode
+                value={socio.carnetUrl}
+                level="M"
+                fgColor={AZUL_QR}
+                viewBox="0 0 256 256"
+                style={{ width: "100%", height: "auto" }}
+                title="Código QR del carnet"
+              />
+            ) : (
+              <QrPlaceholder
+                semilla={`CDI-${socio.numeroSocio}`}
+                className="h-auto w-full"
+              />
+            )}
+          </div>
         </div>
 
         <p className="text-center text-[1.8cqw] leading-[1.3] font-bold text-black">
-          {LEYENDA}
+          {LEYENDA_CARNET}
         </p>
       </div>
     </div>
@@ -155,6 +169,7 @@ function Frente() {
 /** HU-04: carnet digital del socio. */
 export function CarnetSocioCard({ socio }: { socio: CarnetSocio }) {
   const [verFrente, setVerFrente] = useState(false);
+  const [verQr, setVerQr] = useState(false);
 
   const diasRestantes = diasHasta(socio.vigencia.hasta);
   const porVencer =
@@ -213,6 +228,26 @@ export function CarnetSocioCard({ socio }: { socio: CarnetSocio }) {
               : `Vence en ${diasRestantes} ${diasRestantes === 1 ? "día" : "días"}`}
           </span>
         )}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {/*
+          En el carnet el QR entra chico, porque ese es el lugar que le da el
+          diseño. Para que otra cámara lo lea desde la pantalla hace falta
+          verlo en grande, y eso es lo que hace este botón.
+        */}
+        {socio.carnetUrl && (
+          <Button type="button" size="sm" onClick={() => setVerQr(true)}>
+            <QrCode aria-hidden />
+            Mostrar el QR
+          </Button>
+        )}
+
+        <BotonDescargarCarnet
+          socio={socio}
+          etiqueta="Descargar para el celular"
+          size="sm"
+        />
 
         <Button
           type="button"
@@ -228,9 +263,19 @@ export function CarnetSocioCard({ socio }: { socio: CarnetSocio }) {
 
       <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
         <Info className="mt-px size-3.5 shrink-0" aria-hidden />
-        El código QR todavía no está activo: lo estamos preparando para que al
-        escanearlo se vea si tu cuota está al día.
+        {socio.carnetUrl
+          ? "Mostrá el QR en la entrada: al escanearlo se ve tu foto y si tu cuota está al día."
+          : "Tu carnet todavía no tiene código QR. Pedilo en la sede y te lo generan."}
       </p>
+
+      {socio.carnetUrl && (
+        <QrGrandeDialog
+          socio={socio}
+          carnetUrl={socio.carnetUrl}
+          open={verQr}
+          onOpenChange={setVerQr}
+        />
+      )}
     </div>
   );
 }

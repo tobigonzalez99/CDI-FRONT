@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Cargando, ErrorConsulta } from "@/components/shared/estado-consulta";
+import { BotonDescargarCarnet } from "@/features/socios/components/boton-descargar-carnet";
 import { EstadoCuotaBadge } from "@/features/socios/components/estado-cuota-badge";
 import { ListaPagos } from "@/features/pagos/components/lista-pagos";
 import { useSocio } from "@/features/admin/hooks/use-socios";
@@ -112,6 +113,16 @@ export function SocioDetalleDialog({ socioId, onOpenChange }: SocioDetalleDialog
           <div className="space-y-6">
             <Cabecera socio={socio} />
             <AvisoSocioDeBaja socio={socio} />
+
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <BotonDescargarCarnet socio={socio} size="sm" />
+              {!socio.codigoQr && (
+                <p className="text-xs text-muted-foreground">
+                  Todavía no tiene código de carnet: generalo con «Generar los que
+                  falten», arriba del padrón.
+                </p>
+              )}
+            </div>
 
             <BloqueDatosPersonales socio={socio} />
             <BloqueContacto socio={socio} />

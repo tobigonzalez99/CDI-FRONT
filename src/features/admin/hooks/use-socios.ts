@@ -9,6 +9,7 @@ import {
 
 import {
   actualizarSocio,
+  generarCodigosDeCarnet,
   listarSocios,
   listarTiposSocio,
   obtenerSocio,
@@ -78,6 +79,23 @@ export function useReactivarSocio() {
       void queryClient.invalidateQueries({
         queryKey: [...SOCIOS_QUERY_KEY, "listado"],
       });
+    },
+  });
+}
+
+/**
+ * Genera los códigos de carnet que falten.
+ *
+ * Invalida todo lo que cuelga de `socios` porque la respuesta solo trae el
+ * resumen: cuáles fichas cambiaron hay que volver a pedirlas.
+ */
+export function useGenerarCodigosDeCarnet() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: generarCodigosDeCarnet,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: SOCIOS_QUERY_KEY });
     },
   });
 }

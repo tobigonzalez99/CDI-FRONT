@@ -1,4 +1,4 @@
-const AZUL = "#373dcd";
+import { AZUL_QR } from "@/features/socios/lib/carnet";
 
 /** Lado de la grilla, en módulos. 25 es el tamaño de un QR chico real. */
 const LADO = 25;
@@ -44,13 +44,13 @@ interface QrPlaceholderProps {
 }
 
 /**
- * Dibujo con forma de código QR, **provisional**.
+ * Dibujo con forma de código QR, para el socio que todavía **no tiene** uno.
  *
- * Todavía no codifica nada: el código real, único por socio y que al
- * escanearlo dirá si está al día, está pendiente de definirse con el
- * backend. Hasta entonces esto ocupa su lugar en el carnet para que el
- * diseño se vea completo, y por eso va acompañado de un aviso debajo del
- * carnet: un código que parece válido y no lo es confunde más que ayudar.
+ * No codifica nada. Ocupa el lugar del QR real mientras el administrador no
+ * haya generado el código del carnet, para que la tarjeta no se vea rota; por
+ * eso siempre va acompañado del aviso que está debajo del carnet, que explica
+ * que ese código no sirve todavía. Un QR que parece válido y no lo es confunde
+ * más que ayudar.
  */
 export function QrPlaceholder({ semilla, className }: QrPlaceholderProps) {
   const azar = generador(semilla);
@@ -71,7 +71,7 @@ export function QrPlaceholder({ semilla, className }: QrPlaceholderProps) {
       role="img"
       aria-label="Código QR del carnet, todavía sin función"
     >
-      <g fill={AZUL}>
+      <g fill={AZUL_QR}>
         {modulos}
 
         {/* Los tres ojos: marco cuadrado con el centro relleno. */}

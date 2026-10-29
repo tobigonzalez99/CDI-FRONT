@@ -1,6 +1,12 @@
 import { api } from "@/lib/api/client";
 import type { PaginatedResponse } from "@/types/api";
-import type { Socio, SocioFilters, TipoSocio, UpdateSocioInput } from "@/types/socio";
+import type {
+  GenerarQrResponse,
+  Socio,
+  SocioFilters,
+  TipoSocio,
+  UpdateSocioInput,
+} from "@/types/socio";
 
 /** Descarta claves vacías para no mandar `?search=&estado=` al backend. */
 function limpiarParams<T extends object>(params: T): Record<string, unknown> {
@@ -58,5 +64,18 @@ export async function actualizarSocio(
  */
 export async function reactivarSocio(id: string): Promise<Socio> {
   const { data } = await api.patch<Socio>(`/socios/${id}/alta`);
+  return data;
+}
+
+/**
+ * Asigna el código de carnet a los socios activos que todavía no lo tienen.
+ *
+ * A los que ya lo tienen **no los toca**, y eso no es una optimización: el
+ * carnet ya está repartido por WhatsApp y guardado en el teléfono del socio.
+ * Cambiarle el código lo dejaría sin servir sin que nadie se entere hasta la
+ * puerta de la cancha.
+ */
+export async function generarCodigosDeCarnet(): Promise<GenerarQrResponse> {
+  const { data } = await api.post<GenerarQrResponse>("/socios/generar-qr");
   return data;
 }

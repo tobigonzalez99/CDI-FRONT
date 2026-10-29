@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { GenerarCarnets } from "@/features/admin/components/generar-carnets";
 import { PadronSocios } from "@/features/admin/components/padron-socios";
 
 export const metadata: Metadata = { title: "Socios" };
@@ -13,6 +14,8 @@ export default function AdminSociosPage() {
           Buscá, filtrá y consultá la ficha de cada socio con su historial de cobros.
         </p>
       </div>
+
+      <GenerarCarnets />
 
       <PadronSocios />
     </div>

@@ -44,6 +44,16 @@ export interface Socio {
   vigencia: Vigencia;
   /** Calculado por el backend a partir de `vigencia` y la fecha actual. */
   estadoCuota: EstadoCuota;
+  /** Código aleatorio del carnet. `null` hasta que el administrador lo genera. */
+  codigoQr: string | null;
+  /**
+   * Enlace exacto que lleva adentro el QR, armado por el backend.
+   *
+   * No se rearma acá con `window.location.origin`: un administrador que entre
+   * al panel por la IP de la red repartiría carnets con una dirección que no
+   * le sirve a nadie más. Se dibuja tal como llega.
+   */
+  carnetUrl: string | null;
   createdAt: ISODateString;
   updatedAt: ISODateString;
 }
@@ -60,7 +70,21 @@ export type CarnetSocio = Pick<
   | "tipoSocio"
   | "vigencia"
   | "estadoCuota"
+  | "codigoQr"
+  | "carnetUrl"
 >;
+
+/**
+ * Resultado de generar los códigos de carnet (`POST /socios/generar-qr`).
+ *
+ * `yaTenian` no es un detalle: el botón saltea a los socios que ya tienen
+ * código, para no romper los carnets ya repartidos por WhatsApp.
+ */
+export interface GenerarQrResponse {
+  generados: number;
+  yaTenian: number;
+  total: number;
+}
 
 /** HU-08: payload del formulario de alta. Se envía como multipart/form-data por la foto. */
 export interface CreateSocioInput {
