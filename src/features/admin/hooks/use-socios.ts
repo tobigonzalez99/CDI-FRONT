@@ -1,13 +1,19 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
+  actualizarSocio,
   listarSocios,
   listarTiposSocio,
   obtenerSocio,
 } from "@/features/admin/api/socios.api";
-import type { SocioFilters } from "@/types/socio";
+import type { Socio, SocioFilters, UpdateSocioInput } from "@/types/socio";
 
 export const SOCIOS_QUERY_KEY = ["socios"] as const;
 
@@ -37,5 +43,26 @@ export function useTiposSocio(soloActivos = true) {
     queryKey: ["tipos-socio", soloActivos],
     queryFn: () => listarTiposSocio(soloActivos),
     staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * Guarda los cambios de la ficha de un socio.
+ *
+ * La respuesta ya trae la ficha actualizada con su `estadoCuota` recalculado,
+ * así que se escribe directo en la caché del detalle. El padrón sí se
+ * invalida: tocar la categoría o la vigencia cambia lo que muestra la tabla.
+ */
+export function useActualizarSocio(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: Omit<UpdateSocioInput, "foto">) => actualizarSocio(id, input),
+    onSuccess: (socio: Socio) => {
+      queryClient.setQueryData([...SOCIOS_QUERY_KEY, "detalle", socio.id], socio);
+      void queryClient.invalidateQueries({
+        queryKey: [...SOCIOS_QUERY_KEY, "listado"],
+      });
+    },
   });
 }

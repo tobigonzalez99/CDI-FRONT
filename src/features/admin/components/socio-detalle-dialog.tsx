@@ -13,17 +13,13 @@ import { EstadoCuotaBadge } from "@/features/socios/components/estado-cuota-badg
 import { ListaPagos } from "@/features/pagos/components/lista-pagos";
 import { useSocio } from "@/features/admin/hooks/use-socios";
 import { useHistorialDeSocio } from "@/features/pagos/hooks/use-pagos";
-import { formatearFecha, formatearMonto, formatearVigencia } from "@/lib/formato";
+import {
+  BloqueContacto,
+  BloqueDatosPersonales,
+  BloqueMembresia,
+} from "./bloques-ficha-socio";
+import { formatearMonto } from "@/lib/formato";
 import type { Socio } from "@/types/socio";
-
-function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
-  return (
-    <div className="space-y-0.5">
-      <dt className="text-xs text-muted-foreground">{etiqueta}</dt>
-      <dd className="text-sm break-words">{valor}</dd>
-    </div>
-  );
-}
 
 function Cabecera({ socio }: { socio: Socio }) {
   return (
@@ -102,7 +98,8 @@ export function SocioDetalleDialog({ socioId, onOpenChange }: SocioDetalleDialog
         <DialogHeader>
           <DialogTitle className="font-heading">Ficha del socio</DialogTitle>
           <DialogDescription>
-            Datos de la ficha y todos los cobros registrados a su nombre.
+            Editá cualquier bloque con su botón «Editar». Abajo, todos los cobros
+            registrados a su nombre.
           </DialogDescription>
         </DialogHeader>
 
@@ -114,23 +111,9 @@ export function SocioDetalleDialog({ socioId, onOpenChange }: SocioDetalleDialog
           <div className="space-y-6">
             <Cabecera socio={socio} />
 
-            <dl className="grid gap-4 border-t pt-4 sm:grid-cols-2">
-              <Dato etiqueta="DNI" valor={socio.dni} />
-              <Dato etiqueta="Correo electrónico" valor={socio.email} />
-              <Dato etiqueta="Teléfono" valor={socio.telefono} />
-              <Dato
-                etiqueta="Fecha de nacimiento"
-                valor={formatearFecha(socio.fechaNacimiento)}
-              />
-              <Dato
-                etiqueta="Domicilio"
-                valor={`${socio.domicilio}, ${socio.localidad}`}
-              />
-              <Dato
-                etiqueta="Vigencia"
-                valor={formatearVigencia(socio.vigencia.desde, socio.vigencia.hasta)}
-              />
-            </dl>
+            <BloqueDatosPersonales socio={socio} />
+            <BloqueContacto socio={socio} />
+            <BloqueMembresia socio={socio} />
 
             <div className="border-t pt-4">
               <h3 className="font-heading text-base font-bold">Historial de cobros</h3>

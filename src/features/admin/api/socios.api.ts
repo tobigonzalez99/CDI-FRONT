@@ -1,6 +1,6 @@
 import { api } from "@/lib/api/client";
 import type { PaginatedResponse } from "@/types/api";
-import type { Socio, SocioFilters, TipoSocio } from "@/types/socio";
+import type { Socio, SocioFilters, TipoSocio, UpdateSocioInput } from "@/types/socio";
 
 /** Descarta claves vacías para no mandar `?search=&estado=` al backend. */
 function limpiarParams<T extends object>(params: T): Record<string, unknown> {
@@ -30,5 +30,21 @@ export async function listarTiposSocio(soloActivos = true): Promise<TipoSocio[]>
   const { data } = await api.get<TipoSocio[]>("/tipos-socio", {
     params: { soloActivos },
   });
+  return data;
+}
+
+/**
+ * Edita la ficha de un socio desde el panel.
+ *
+ * Va como JSON y no como `multipart/form-data`: con multipart el backend
+ * recibiría todo convertido a texto y habría que serializar `vigencia` a
+ * mano, porque multer no reconstruye objetos anidados. La foto queda fuera
+ * por ahora; el día que se agregue, ese caso sí necesita multipart.
+ */
+export async function actualizarSocio(
+  id: string,
+  input: Omit<UpdateSocioInput, "foto">,
+): Promise<Socio> {
+  const { data } = await api.patch<Socio>(`/socios/${id}`, input);
   return data;
 }

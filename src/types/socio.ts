@@ -77,8 +77,14 @@ export interface CreateSocioInput {
   foto: File | null;
 }
 
-export type UpdateSocioInput = Partial<CreateSocioInput> & {
+/**
+ * Edición de la ficha desde el panel (`PATCH /socios/:id`). Todos los campos
+ * son opcionales y se puede mandar uno solo.
+ */
+export type UpdateSocioInput = Partial<Omit<CreateSocioInput, "vigencia">> & {
   estado?: EstadoSocio;
+  /** Acepta un solo extremo: el que no se manda se conserva como estaba. */
+  vigencia?: Partial<Vigencia>;
 };
 
 /** HU-08: el backend genera la contraseña inicial y la devuelve una única vez. */
