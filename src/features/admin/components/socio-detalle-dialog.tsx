@@ -10,6 +10,10 @@ import {
 } from "@/components/ui/dialog";
 import { Cargando, ErrorConsulta } from "@/components/shared/estado-consulta";
 import { BotonDescargarCarnet } from "@/features/socios/components/boton-descargar-carnet";
+import {
+  AYUDA_QR_IMPRENTA,
+  BotonDescargarQr,
+} from "@/features/socios/components/boton-descargar-qr";
 import { EstadoCuotaBadge } from "@/features/socios/components/estado-cuota-badge";
 import { ListaPagos } from "@/features/pagos/components/lista-pagos";
 import { useSocio } from "@/features/admin/hooks/use-socios";
@@ -114,14 +118,21 @@ export function SocioDetalleDialog({ socioId, onOpenChange }: SocioDetalleDialog
             <Cabecera socio={socio} />
             <AvisoSocioDeBaja socio={socio} />
 
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <BotonDescargarCarnet socio={socio} size="sm" />
-              {!socio.codigoQr && (
-                <p className="text-xs text-muted-foreground">
-                  Todavía no tiene código de carnet: generalo con «Generar los que
-                  falten», arriba del padrón.
-                </p>
-              )}
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <BotonDescargarCarnet
+                  socio={socio}
+                  etiqueta="Carnet para el celular"
+                  size="sm"
+                />
+                <BotonDescargarQr socio={socio} size="sm" />
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                {socio.codigoQr
+                  ? AYUDA_QR_IMPRENTA
+                  : "Todavía no tiene código de carnet: generalo con «Generar los que falten», arriba del padrón."}
+              </p>
             </div>
 
             <BloqueDatosPersonales socio={socio} />

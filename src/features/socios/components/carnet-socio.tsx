@@ -11,6 +11,7 @@ import carnetTextura from "@/assets/carnet-textura.png";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { BotonDescargarCarnet } from "@/features/socios/components/boton-descargar-carnet";
+import { CarnetCelular } from "@/features/socios/components/carnet-celular";
 import { EstadoCuotaBadge } from "@/features/socios/components/estado-cuota-badge";
 import { QrGrandeDialog } from "@/features/socios/components/qr-grande-dialog";
 import { QrPlaceholder } from "@/features/socios/components/qr-placeholder";
@@ -58,17 +59,21 @@ function Etiqueta({ children }: { children: React.ReactNode }) {
  * Está reconstruida en HTML y no es una imagen, porque cada socio lleva su
  * foto, su nombre y su categoría. Las medidas van en `cqw` —porcentaje del
  * ancho de la propia tarjeta— para que todo escale junto, igual que lo haría
- * una imagen, en el teléfono y en el escritorio.
+ * una imagen, en el escritorio. En el teléfono esta tarjeta no se muestra.
  */
 function Dorso({ socio }: { socio: CarnetSocio }) {
   return (
     <div className="@container flex size-full flex-col overflow-hidden rounded-[2cqw] bg-white shadow-lg ring-1 ring-black/10 transition-shadow duration-300 group-hover:shadow-2xl">
+      {/*
+        Sin `priority`: en el teléfono la tarjeta está oculta y así el
+        navegador se ahorra bajar la banda; en la computadora entra en
+        pantalla al cargar y se baja igual.
+      */}
       <Image
         src={carnetBanner}
         alt=""
         aria-hidden
         className="h-[32%] w-full object-cover"
-        priority
       />
 
       <div
@@ -180,6 +185,20 @@ export function CarnetSocioCard({ socio }: { socio: CarnetSocio }) {
   return (
     <div className="space-y-3">
       {/*
+        En el teléfono va el carnet vertical y nada más. El horizontal
+        reproduce el carnet físico, que es apaisado: metido en una pantalla
+        angosta queda chico, con el QR ilegible y la foto del tamaño de una
+        uña. Son dos formatos para dos lugares, no el mismo achicado.
+      */}
+      <div className="sm:hidden">
+        <CarnetCelular
+          socio={socio}
+          carnetUrl={socio.carnetUrl}
+          className="mx-auto max-w-[420px] shadow-lg ring-1 ring-black/10"
+        />
+      </div>
+
+      {/*
         Al pasar el mouse la tarjeta se agranda apenas; para darla vuelta hay
         que hacerle clic. Girarla con solo pasar el mouse se vería bien un
         segundo y sería incómodo de usar: en un teléfono no existe el "pasar
@@ -187,7 +206,7 @@ export function CarnetSocioCard({ socio }: { socio: CarnetSocio }) {
         apenas corrés el mouse para leerla.
       */}
       <div
-        className="group relative cursor-pointer transition-transform duration-300 ease-out hover:scale-[1.02] motion-reduce:transition-none motion-reduce:hover:scale-100"
+        className="group relative hidden cursor-pointer transition-transform duration-300 ease-out hover:scale-[1.02] motion-reduce:transition-none motion-reduce:hover:scale-100 sm:block"
         style={{ perspective: "1600px" }}
       >
         {/*
@@ -274,11 +293,12 @@ export function CarnetSocioCard({ socio }: { socio: CarnetSocio }) {
           size="sm"
         />
 
+        {/* Sin tarjeta horizontal en el teléfono, no hay nada que dar vuelta. */}
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="ml-auto"
+          className="ml-auto max-sm:hidden"
           onClick={() => setVerFrente((actual) => !actual)}
         >
           <RotateCcw aria-hidden />

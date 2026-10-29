@@ -6,7 +6,10 @@ import { Download, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { CarnetCelular } from "@/features/socios/components/carnet-celular";
+import {
+  ANCHO_CARNET,
+  CarnetCelular,
+} from "@/features/socios/components/carnet-celular";
 import { nombreDeArchivo } from "@/features/socios/lib/carnet";
 import type { CarnetSocio } from "@/types/socio";
 
@@ -52,7 +55,12 @@ export function BotonDescargarCarnet({
 
       const enlace = document.createElement("a");
       enlace.href = imagen;
-      enlace.download = nombreDeArchivo(socio.numeroSocio, socio.apellido);
+      enlace.download = nombreDeArchivo(
+        "carnet",
+        socio.numeroSocio,
+        socio.apellido,
+        "png",
+      );
       enlace.click();
     } catch {
       toast.error("No pudimos generar el carnet", {
@@ -104,7 +112,8 @@ export function BotonDescargarCarnet({
         className="pointer-events-none fixed top-0 left-[-10000px]"
         style={{ zIndex: -1 }}
       >
-        <div ref={tarjeta}>
+        {/* El ancho fijo es el de diseño: la imagen sale al doble de esto. */}
+        <div ref={tarjeta} style={{ width: ANCHO_CARNET }}>
           <CarnetCelular socio={socio} carnetUrl={carnetUrl} />
         </div>
       </div>
