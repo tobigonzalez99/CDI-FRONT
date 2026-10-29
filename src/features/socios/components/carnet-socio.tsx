@@ -62,7 +62,7 @@ function Etiqueta({ children }: { children: React.ReactNode }) {
  */
 function Dorso({ socio }: { socio: CarnetSocio }) {
   return (
-    <div className="@container flex size-full flex-col overflow-hidden rounded-[2cqw] bg-white shadow-lg ring-1 ring-black/10">
+    <div className="@container flex size-full flex-col overflow-hidden rounded-[2cqw] bg-white shadow-lg ring-1 ring-black/10 transition-shadow duration-300 group-hover:shadow-2xl">
       <Image
         src={carnetBanner}
         alt=""
@@ -161,7 +161,7 @@ function Frente() {
     <Image
       src={carnetFrente}
       alt="Frente del carnet de socio del Club Deportivo Independencia"
-      className="size-full rounded-[2cqw] object-cover shadow-lg ring-1 ring-black/10"
+      className="size-full rounded-[2cqw] object-cover shadow-lg ring-1 ring-black/10 transition-shadow duration-300 group-hover:shadow-2xl"
     />
   );
 }
@@ -179,14 +179,24 @@ export function CarnetSocioCard({ socio }: { socio: CarnetSocio }) {
 
   return (
     <div className="space-y-3">
-      <div style={{ perspective: "1600px" }}>
+      {/*
+        Al pasar el mouse la tarjeta se agranda apenas; para darla vuelta hay
+        que hacerle clic. Girarla con solo pasar el mouse se vería bien un
+        segundo y sería incómodo de usar: en un teléfono no existe el "pasar
+        el mouse", y en la computadora la tarjeta volvería al lado anterior
+        apenas corrés el mouse para leerla.
+      */}
+      <div
+        className="group relative cursor-pointer transition-transform duration-300 ease-out hover:scale-[1.02] motion-reduce:transition-none motion-reduce:hover:scale-100"
+        style={{ perspective: "1600px" }}
+      >
         {/*
           Las transformaciones van en estilos en línea y no en clases: una
           clase arbitraria con `rotateY()` no siempre llega a generarse, y si
           no se genera la tarjeta deja de girar sin ningún aviso.
         */}
         <div
-          className="relative w-full transition-transform duration-500"
+          className="relative w-full transition-transform duration-500 motion-reduce:transition-none"
           style={{
             aspectRatio: PROPORCION,
             transformStyle: "preserve-3d",
@@ -209,6 +219,21 @@ export function CarnetSocioCard({ socio }: { socio: CarnetSocio }) {
             <Frente />
           </div>
         </div>
+
+        {/*
+          La zona de clic va encima de la tarjeta y no envolviéndola: dentro de
+          un <button>, un lector de pantalla leería toda la tarjeta como el
+          nombre del botón y se perdería el contenido. Queda fuera del recorrido
+          del teclado porque el botón «Ver el frente», acá abajo, hace lo mismo
+          y sí está rotulado.
+        */}
+        <button
+          type="button"
+          aria-hidden
+          tabIndex={-1}
+          className="absolute inset-0 z-10"
+          onClick={() => setVerFrente((actual) => !actual)}
+        />
       </div>
 
       {/* Lo que el diseño del carnet no contempla y el socio igual necesita. */}
