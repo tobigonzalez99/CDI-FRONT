@@ -70,13 +70,41 @@ se emite un token nuevo, así que conviene refrescar la sesión con la respuesta
 | POST | `/socios` | ADMIN | HU-08. JSON o `multipart/form-data`. Devuelve `{ socio, passwordInicial }` |
 | GET | `/socios` | ADMIN | Paginado: `page`, `pageSize`, `search`, `estado`, `estadoCuota`, `tipoSocioId`, `sortBy`, `sortOrder` |
 | GET | `/socios/:id` | ADMIN | |
-| PATCH | `/socios/:id` | ADMIN | HU-08/HU-09. Todo opcional; una foto nueva reemplaza la anterior |
+| PATCH | `/socios/:id` | ADMIN | HU-08/HU-09. Todo opcional y vale mandar un solo campo; `vigencia` acepta un solo extremo (el otro se conserva). Una foto nueva reemplaza la anterior |
 | PATCH | `/socios/:id/baja` · `/alta` | ADMIN | Cambia `estado`; reversible |
 | DELETE | `/socios/:id` | ADMIN | Baja lógica (`deletedAt`), `204` |
+| POST | `/socios/:id/resetear-password` | ADMIN | Genera una clave nueva y devuelve `{ socio, passwordInicial }` **una única vez**. Deja al socio obligado a cambiarla; no le consume sus 2 cambios por mes |
 | GET | `/perfil/me` | SOCIO | HU-04. Ficha propia + `estadoCuota` |
 | PATCH | `/perfil/me` | SOCIO | Edita **solo** teléfono, domicilio, localidad y foto |
 | GET · POST | `/tipos-socio` | ADMIN | HU-09. `?soloActivos=true` para el selector del alta |
 | GET · PATCH | `/tipos-socio/:id` | ADMIN | Desactivar saca el tipo de las altas nuevas sin tocar a sus socios |
+
+**Editar un socio:** si no cambia la foto, mandar `application/json` — es mucho más
+simple que armar un multipart. Todos los campos son opcionales y se puede enviar uno
+solo (`{ "localidad": "Villa María" }`). En `vigencia` alcanza con el extremo que se
+quiere mover: `{ "vigencia": { "hasta": "2026-12-01" } }` conserva el `desde` guardado
+y es el caso habitual cuando hay que corregir un vencimiento. El rango resultante se
+valida contra lo que ya está en la ficha, así que un `hasta` anterior al `desde`
+vuelve como `fieldErrors["vigencia.hasta"]`.
+
+**Reseteo de contraseña.** La clave nueva se devuelve una vez y no queda consultable,
+igual que en el alta. El socio queda con `mustChangePassword: true`, así que elige una
+propia en su próximo ingreso (HU-03), y el reseteo se asienta como cambio **no
+voluntario**: perder la clave no es lo mismo que decidir cambiarla, así que no le consume
+ninguno de los dos cambios que puede hacer cada 30 días.
+
+> ⚠️ **Implementado y verificado, pero a propósito NO conectado al panel.** Decisión del
+> 2026-10-29: el camino para el socio que olvida su clave va a ser la **recuperación por
+> correo**, prevista para unas tareas más adelante. Este endpoint queda como la salida
+> para quien no tenga acceso a su correo. **No sumarlo a la interfaz del panel sin que lo
+> pida el cliente.**
+
+**Cambiar el DNI cambia el usuario de ingreso:** es el dato con el que el socio entra
+al sitio. Tras un cambio, el DNI viejo deja de servir para iniciar sesión.
+
+**La foto del carnet la cambia solo el socio**, desde `PATCH /perfil/me`. Decisión del
+cliente del 2026-10-29: aunque `PATCH /socios/:id` la acepta en multipart y funciona, el
+panel del administrador **no** la expone. No agregarla sin que la pida.
 
 **Subida de la foto:** campo `foto` (jpg, png o webp; máx. 5 MB por defecto).
 En `multipart/form-data` la vigencia va **serializada como JSON** en un solo campo —
@@ -128,6 +156,36 @@ solicitudes pendientes, y el conflicto llega en `fieldErrors` indicando cuál de
 casos es. Un socio dado de baja lógicamente **sigue ocupando** su DNI y su correo
 (igual que el índice único de la base): para reincorporarlo hay que restaurar su ficha,
 no crear otra.
+
+### Solicitudes de baja — el socio se da de baja (implementado)
+
+El socio pide la baja desde su propia sección del sitio y la **resuelve el
+administrador**, con el mismo circuito que el alta. Igual que en las altas, la
+tabla guarda **solo pedidos pendientes**: aprobar o rechazar lo borra.
+
+| Método | Ruta | Acceso | Notas |
+|---|---|---|---|
+| POST | `/solicitudes-baja` | SOCIO | Pide su baja. Cuerpo opcional: `motivo` (máx. 500). No da de baja nada todavía |
+| GET | `/solicitudes-baja/mia` | SOCIO | `{ pendiente, solicitadaEn, motivo }` — qué mostrar en su sección |
+| DELETE | `/solicitudes-baja/mia` | SOCIO | Da marcha atrás mientras siga pendiente, `204` |
+| GET | `/solicitudes-baja` | ADMIN | Paginado, más antiguos primero. Cada pedido trae la ficha completa del socio |
+| GET | `/solicitudes-baja/pendientes/total` | ADMIN | `{ pendientes: n }` para el indicador del panel |
+| GET | `/solicitudes-baja/:id` | ADMIN | |
+| POST | `/solicitudes-baja/:id/aprobar` | ADMIN | "Dar de baja". Pasa el socio a `BAJA` y borra el pedido. Devuelve el `Socio` |
+| DELETE | `/solicitudes-baja/:id` | ADMIN | "Rechazar la baja". Borra el pedido; el socio sigue `ALTA`, `204` |
+
+**La baja no borra nada.** Es solo `socios.estado` pasando a `BAJA`: ficha, pagos e
+historial quedan intactos. Se revierte desde el panel con `PATCH /socios/:id/alta`, y
+los dados de baja se listan con `GET /socios?estado=BAJA`. No confundirla con el borrado
+lógico (`DELETE /socios/:id`, que setea `deletedAt`): son dos cosas distintas.
+
+> ⚠️ **Un socio en `BAJA` no puede iniciar sesión**: `puedeOperar()` exige `estado === ALTA`,
+> así que el login responde `403 ACCOUNT_DISABLED`. Por eso la pantalla de "pedir la baja"
+> solo la ve un socio activo, y para volver tiene que pedirle al club que lo reactive.
+
+Un socio no puede tener dos pedidos pendientes (índice único por `socio_id`): el segundo
+envío responde `409 CONFLICT`, lo que cubre el doble click. Si el socio tiene baja lógica,
+su pedido desaparece del listado del admin.
 
 ### Cobranza de cuotas (implementado)
 
@@ -274,6 +332,7 @@ Credenciales de desarrollo en `.env` (`SEED_ADMIN_*`): DNI `20000001`, clave `Cd
 - `paginas`: secciones de contenido editable (`slug` único, `titulo`, `resumen`, `contenido` en Markdown, `publicada`).
 - `disciplinas`: actividades del menú (`slug` único, `orden`, `activa`). Lista plana, sin jerarquía.
 - `solicitudes_socio`: postulaciones pendientes (datos del formulario + `foto_path` + `tipo_socio_id`). `dni` y `email` únicos. Se borra al aprobar o rechazar.
+- `solicitudes_baja`: pedidos de baja pendientes (`socio_id` único + `motivo` opcional). Se borra al aprobar o rechazar; aprobar solo cambia `socios.estado` a `BAJA`.
 - `socios.foto_path` guarda la ruta relativa del archivo; la URL pública se arma al responder.
 
 ## Comandos rápidos
