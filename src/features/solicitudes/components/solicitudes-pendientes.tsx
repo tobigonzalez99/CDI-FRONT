@@ -6,15 +6,8 @@ import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Cargando, ErrorConsulta } from "@/components/shared/estado-consulta";
+import { ConfirmarDialog } from "@/components/shared/confirmar-dialog";
 import { PasswordInicialDialog } from "@/features/solicitudes/components/password-inicial-dialog";
 import {
   useAprobarSolicitud,
@@ -121,7 +114,12 @@ function TarjetaSolicitud({
         )}
 
         <div className="mt-5 flex flex-wrap gap-2 border-t pt-4">
-          <Button type="button" onClick={darDeAlta} disabled={ocupado}>
+          <Button
+            type="button"
+            variant="success"
+            onClick={darDeAlta}
+            disabled={ocupado}
+          >
             {aprobar.isPending ? (
               <LoaderCircle className="size-4 animate-spin" aria-hidden />
             ) : (
@@ -132,7 +130,7 @@ function TarjetaSolicitud({
 
           <Button
             type="button"
-            variant="destructive"
+            variant="danger"
             onClick={() => setConfirmandoRechazo(true)}
             disabled={ocupado}
           >
@@ -143,40 +141,16 @@ function TarjetaSolicitud({
       </article>
 
       {/* Rechazar borra los datos y la foto: no se deshace, va con confirmación. */}
-      <Dialog open={confirmandoRechazo} onOpenChange={setConfirmandoRechazo}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-heading">¿Rechazar la solicitud?</DialogTitle>
-            <DialogDescription>
-              Se borran los datos y la foto de {solicitud.nombre} {solicitud.apellido}.
-              Esta acción no se puede deshacer; si quiere asociarse, tendrá que volver
-              a completar el formulario.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setConfirmandoRechazo(false)}
-              disabled={rechazar.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={confirmarRechazo}
-              disabled={rechazar.isPending}
-            >
-              {rechazar.isPending && (
-                <LoaderCircle className="size-4 animate-spin" aria-hidden />
-              )}
-              Sí, rechazar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmarDialog
+        open={confirmandoRechazo}
+        onOpenChange={setConfirmandoRechazo}
+        variante="danger"
+        titulo="¿Rechazar la solicitud?"
+        descripcion={`Vas a rechazar la solicitud de ${solicitud.nombre} ${solicitud.apellido}. Se borran los datos que envió y su foto, y no se pueden recuperar. La persona puede volver a postularse más adelante.`}
+        textoConfirmar="Rechazar solicitud"
+        ejecutando={rechazar.isPending}
+        onConfirmar={() => void confirmarRechazo()}
+      />
     </>
   );
 }

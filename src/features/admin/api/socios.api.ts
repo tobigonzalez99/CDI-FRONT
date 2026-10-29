@@ -48,3 +48,15 @@ export async function actualizarSocio(
   const { data } = await api.patch<Socio>(`/socios/${id}`, input);
   return data;
 }
+
+/**
+ * "Reactivar": devuelve al socio al estado ALTA.
+ *
+ * La baja no borra nada —es un estado—, así que reactivar le devuelve su
+ * ficha, su vigencia y su historial tal como estaban, y vuelve a poder
+ * iniciar sesión.
+ */
+export async function reactivarSocio(id: string): Promise<Socio> {
+  const { data } = await api.patch<Socio>(`/socios/${id}/alta`);
+  return data;
+}

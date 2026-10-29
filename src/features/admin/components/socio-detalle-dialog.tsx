@@ -14,6 +14,7 @@ import { ListaPagos } from "@/features/pagos/components/lista-pagos";
 import { useSocio } from "@/features/admin/hooks/use-socios";
 import { useHistorialDeSocio } from "@/features/pagos/hooks/use-pagos";
 import {
+  AvisoSocioDeBaja,
   BloqueContacto,
   BloqueDatosPersonales,
   BloqueMembresia,
@@ -110,6 +111,7 @@ export function SocioDetalleDialog({ socioId, onOpenChange }: SocioDetalleDialog
         ) : (
           <div className="space-y-6">
             <Cabecera socio={socio} />
+            <AvisoSocioDeBaja socio={socio} />
 
             <BloqueDatosPersonales socio={socio} />
             <BloqueContacto socio={socio} />

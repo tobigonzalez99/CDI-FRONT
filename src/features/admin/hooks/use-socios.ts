@@ -12,6 +12,7 @@ import {
   listarSocios,
   listarTiposSocio,
   obtenerSocio,
+  reactivarSocio,
 } from "@/features/admin/api/socios.api";
 import type { Socio, SocioFilters, UpdateSocioInput } from "@/types/socio";
 
@@ -58,6 +59,20 @@ export function useActualizarSocio(id: string) {
 
   return useMutation({
     mutationFn: (input: Omit<UpdateSocioInput, "foto">) => actualizarSocio(id, input),
+    onSuccess: (socio: Socio) => {
+      queryClient.setQueryData([...SOCIOS_QUERY_KEY, "detalle", socio.id], socio);
+      void queryClient.invalidateQueries({
+        queryKey: [...SOCIOS_QUERY_KEY, "listado"],
+      });
+    },
+  });
+}
+
+export function useReactivarSocio() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: reactivarSocio,
     onSuccess: (socio: Socio) => {
       queryClient.setQueryData([...SOCIOS_QUERY_KEY, "detalle", socio.id], socio);
       void queryClient.invalidateQueries({

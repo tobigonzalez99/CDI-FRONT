@@ -14,6 +14,14 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+        /**
+         * Verde y rojo plenos para las acciones del panel que el club pidió
+         * distinguir de un vistazo: alta en verde, baja y rechazo en rojo.
+         * Se diferencian de `destructive`, que es el rojo atenuado que usa
+         * el resto de la aplicación.
+         */
+        success: "bg-success text-success-foreground hover:bg-success/90",
+        danger: "bg-destructive text-white hover:bg-destructive/90",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",

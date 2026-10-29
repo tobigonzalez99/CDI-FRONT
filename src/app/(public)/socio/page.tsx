@@ -1,6 +1,6 @@
 import { SeccionEditable } from "@/features/paginas/components/seccion-editable";
 import { metadataDeSeccion } from "@/features/paginas/metadata";
-import { HacetesocioCard } from "@/features/solicitudes/components/hacete-socio-card";
+import { BloqueSocio } from "@/features/solicitudes/components/bloque-socio";
 import { PAGINAS } from "@/types/pagina";
 
 const POR_DEFECTO = {
@@ -15,14 +15,14 @@ export const generateMetadata = () =>
   });
 
 /**
- * La única sección editable que ya tiene algo propio: el formulario de
- * solicitud va debajo del texto que escriba el club sobre beneficios y
- * categorías, y sigue en pie aunque todavía no haya texto.
+ * La única sección editable que ya tiene algo propio: debajo del texto que
+ * escriba el club va la solicitud de alta o, si quien mira ya es socio, el
+ * agradecimiento con la opción de darse de baja.
  */
 export default function SocioPage() {
   return (
     <SeccionEditable slug={PAGINAS.socio} href="/socio" porDefecto={POR_DEFECTO}>
-      <HacetesocioCard />
+      <BloqueSocio />
     </SeccionEditable>
   );
 }

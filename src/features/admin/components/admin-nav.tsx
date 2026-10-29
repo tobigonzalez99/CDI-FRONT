@@ -2,19 +2,49 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChartColumn, LayoutDashboard, Receipt, Users } from "lucide-react";
+import {
+  ChartColumn,
+  LayoutDashboard,
+  Receipt,
+  UserMinus,
+  Users,
+} from "lucide-react";
 
+import { useBajasPendientes } from "@/features/solicitudes/hooks/use-bajas";
+import { useSolicitudesPendientes } from "@/features/solicitudes/hooks/use-solicitudes";
 import { cn } from "@/lib/utils";
 
 const SECCIONES = [
-  { href: "/admin", label: "Panel", Icon: LayoutDashboard },
+  { href: "/admin", label: "Altas", Icon: LayoutDashboard },
+  { href: "/admin/bajas", label: "Bajas", Icon: UserMinus },
   { href: "/admin/socios", label: "Socios", Icon: Users },
   { href: "/admin/cobranzas", label: "Cobranzas", Icon: ChartColumn },
   { href: "/admin/cobros", label: "Registrar cobro", Icon: Receipt },
 ] as const;
 
+/** Cuántos pedidos esperan respuesta, al lado del nombre de la sección. */
+function Pendientes({ cantidad }: { cantidad: number | undefined }) {
+  if (!cantidad) return null;
+
+  return (
+    <span
+      className="rounded-full bg-brand-red px-1.5 py-0.5 text-[11px] leading-none font-semibold text-white"
+      aria-label={`${cantidad} pendientes`}
+    >
+      {cantidad}
+    </span>
+  );
+}
+
 export function AdminNav() {
   const pathname = usePathname();
+  const { data: altas } = useSolicitudesPendientes();
+  const { data: bajas } = useBajasPendientes();
+
+  const pendientesPorRuta: Record<string, number | undefined> = {
+    "/admin": altas,
+    "/admin/bajas": bajas,
+  };
 
   return (
     <nav aria-label="Secciones de administración" className="border-b">
@@ -37,6 +67,7 @@ export function AdminNav() {
               >
                 <Icon className="size-4" aria-hidden />
                 {label}
+                <Pendientes cantidad={pendientesPorRuta[href]} />
               </Link>
             </li>
           );

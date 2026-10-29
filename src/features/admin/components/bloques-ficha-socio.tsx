@@ -3,13 +3,19 @@
 import { useId, useState } from "react";
 import { useForm, type FieldValues, type Path, type UseFormSetError } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { TriangleAlert } from "lucide-react";
+import { LoaderCircle, TriangleAlert, UserCheck, UserMinus } from "lucide-react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
+import { ConfirmarDialog } from "@/components/shared/confirmar-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BloqueEditable, Campo, Dato, descripcionDe } from "./bloque-editable";
-import { useActualizarSocio, useTiposSocio } from "@/features/admin/hooks/use-socios";
+import {
+  useActualizarSocio,
+  useReactivarSocio,
+  useTiposSocio,
+} from "@/features/admin/hooks/use-socios";
 import { aplicarFieldErrors, mensajeDeError } from "@/lib/api/errors";
 import { formatearFecha, formatearMonto, formatearVigencia } from "@/lib/formato";
 import {
@@ -466,5 +472,77 @@ export function BloqueMembresia({ socio }: { socio: Socio }) {
         </>
       }
     />
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+/**
+ * Aviso de que el socio está dado de baja, con la vuelta atrás a mano.
+ *
+ * Va arriba de todo en la ficha porque cambia cómo se lee el resto: los datos
+ * siguen ahí, pero la persona no puede entrar al sitio hasta que se la
+ * reactive.
+ */
+export function AvisoSocioDeBaja({ socio }: { socio: Socio }) {
+  const [confirmando, setConfirmando] = useState(false);
+  const { mutateAsync: reactivar, isPending } = useReactivarSocio();
+
+  if (socio.estado !== "BAJA") return null;
+
+  async function confirmarReactivacion() {
+    try {
+      await reactivar(socio.id);
+      setConfirmando(false);
+      toast.success(`${socio.nombre} vuelve a ser socio activo`, {
+        description: "Ya puede iniciar sesión de nuevo.",
+      });
+    } catch (error) {
+      toast.error("No pudimos reactivar al socio", {
+        description: mensajeDeError(error),
+      });
+    }
+  }
+
+  return (
+    <>
+      <div className="rounded-xl border border-dashed border-destructive/40 bg-destructive/5 p-4">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <UserMinus className="size-4 shrink-0 text-destructive" aria-hidden />
+          Este socio está dado de baja
+        </p>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Sus datos y su historial de pagos se conservan, pero no puede iniciar
+          sesión hasta que lo reactives.
+        </p>
+
+        <Button
+          type="button"
+          variant="success"
+          size="lg"
+          className="mt-3"
+          onClick={() => setConfirmando(true)}
+          disabled={isPending}
+        >
+          {isPending ? (
+            <LoaderCircle className="animate-spin" aria-hidden />
+          ) : (
+            <UserCheck aria-hidden />
+          )}
+          Reactivar socio
+        </Button>
+      </div>
+
+      <ConfirmarDialog
+        open={confirmando}
+        onOpenChange={setConfirmando}
+        variante="success"
+        titulo="¿Reactivar al socio?"
+        descripcion={`${socio.nombre} ${socio.apellido} vuelve a ser socio activo, con su misma ficha y su misma vigencia, y puede volver a iniciar sesión.`}
+        textoConfirmar="Reactivar"
+        ejecutando={isPending}
+        onConfirmar={() => void confirmarReactivacion()}
+      />
+    </>
   );
 }
