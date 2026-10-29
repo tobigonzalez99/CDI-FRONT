@@ -44,6 +44,7 @@ CDI/
 | Roles | `ADMIN` \| `SOCIO` |
 | Socio | `nombre` y `apellido` separados; `dni` string (7–8 dígitos); fechas `YYYY-MM-DD`; `vigencia: { desde, hasta }` inclusive. |
 | Estado socio | `ALTA` \| `BAJA` (administrativo, persistido). Además soft delete (`deletedAt`). |
+| Carnet QR | `socios.codigoQr` (aleatorio, único, nulo hasta generarlo) y `carnetUrl` (`SITIO_URL/carnet/<codigo>`), que arma el backend. El escaneo es público |
 | Estado cuota | `AL_DIA` \| `PENDIENTE` — **calculado** por el backend comparando la vigencia con la fecha actual en `America/Argentina/Buenos_Aires`. No se persiste. |
 | Tipos de socio | Entidad configurable (`TipoSocio`), no enum. El alta de socio recibe `tipoSocioId`. |
 | Alta de socio | `multipart/form-data` (campo archivo `foto`, vigencia como `vigencia[desde]`/`vigencia[hasta]`). Respuesta `{ socio, passwordInicial }` (la clave se muestra una única vez). |
@@ -73,6 +74,7 @@ se emite un token nuevo, así que conviene refrescar la sesión con la respuesta
 | PATCH | `/socios/:id` | ADMIN | HU-08/HU-09. Todo opcional y vale mandar un solo campo; `vigencia` acepta un solo extremo (el otro se conserva). Una foto nueva reemplaza la anterior |
 | PATCH | `/socios/:id/baja` · `/alta` | ADMIN | Cambia `estado`; reversible |
 | DELETE | `/socios/:id` | ADMIN | Baja lógica (`deletedAt`), `204` |
+| POST | `/socios/generar-qr` | ADMIN | Genera el código del carnet de los socios activos que **todavía no lo tengan**. Saltea a los que ya tienen |
 | POST | `/socios/:id/resetear-password` | ADMIN | Genera una clave nueva y devuelve `{ socio, passwordInicial }` **una única vez**. Deja al socio obligado a cambiarla; no le consume sus 2 cambios por mes |
 | GET | `/perfil/me` | SOCIO | HU-04. Ficha propia + `estadoCuota` |
 | PATCH | `/perfil/me` | SOCIO | Edita **solo** teléfono, domicilio, localidad y foto |
@@ -116,6 +118,68 @@ en la base se guarda solo la ruta relativa.
 
 > `passwordInicial` se devuelve **una única vez**, al crear el socio. No hay forma de
 > volver a consultarla: el admin tiene que copiarla y entregarla en ese momento.
+
+### Carnet digital y QR (backend implementado)
+
+Cada socio tiene un carnet con un QR que, escaneado con la cámara de cualquier
+celular, abre una página del sitio y dice si le corresponde el descuento en la
+entrada. El carnet se descarga como imagen desde el panel para mandarlo por WhatsApp.
+
+| Método | Ruta | Acceso | Notas |
+|---|---|---|---|
+| POST | `/socios/generar-qr` | ADMIN | Asigna el código a los socios activos que no lo tengan. Devuelve `{ generados, yaTenian, total }` |
+| GET | `/carnet/:codigo` | **público** | Lo que se consulta al escanear. `404` si el código no existe. Límite: 60 por minuto y por IP |
+
+**Lo que lleva el QR es un enlace, no datos.** Si el QR guardara "este socio está al
+día", quedaría congelado el día que se genera. Lo que lleva es
+`SITIO_URL/carnet/<codigoQr>`: quien escanea abre esa página y el estado se resuelve
+en ese momento, así que un pago de hace cinco minutos ya se ve. El enlace exacto lo
+arma el backend y viaja en `carnetUrl`; el frontend solo lo dibuja, para que los dos
+lados no puedan discrepar en el formato.
+
+**El código es aleatorio de 128 bits y no se deriva del DNI ni del número de socio.**
+Si fuera derivado, cualquiera podría fabricarse el carnet de un socio al día. Es único
+(`socios.codigo_qr`) y **nulo hasta que se genera**.
+
+**Una vez generado no cambia, y el botón saltea a los que ya tienen.** No es una
+optimización: el carnet ya está repartido por WhatsApp y guardado en el teléfono del
+socio. Regenerarlo lo dejaría sin servir sin que nadie se entere hasta la puerta de la
+cancha. Por eso el botón se aprieta de nuevo después de cada alta y solo alcanza a los
+nuevos. **No agregar un "regenerar código"** sin que el cliente lo pida.
+
+**Qué devuelve el escaneo** (`CarnetResponse`): `numeroSocio`, `nombre`, `apellido`,
+`tipoSocio` (el nombre de la categoría), `fotoUrl`, `alDia` y `situacion`.
+Deliberadamente **sin** DNI, correo, domicilio, teléfono, importes ni fechas de
+vigencia: la página la ve cualquiera que escanee, y nada de eso hace falta en la puerta.
+
+`situacion` toma `AL_DIA`, `CUOTA_VENCIDA` o `DADO_DE_BAJA`. `alDia` es lo único que
+decide el descuento; `situacion` existe porque en la puerta los dos motivos para cobrar
+precio normal no son lo mismo (una cuota vencida se paga ahí, una baja se resuelve con
+la administración).
+
+> ⚠️ **El carnet mira `estado` además de la vigencia, y eso no es opcional.**
+> `calcularEstadoCuota` solo compara fechas: un socio dado de baja con la cuota paga
+> hasta diciembre da `AL_DIA`. En el panel no molesta —el estado se muestra al lado—,
+> pero en el control de acceso sería darle el descuento a alguien que ya no es socio.
+> Por eso el carnet usa `calcularSituacionCarnet`, que mira las dos cosas. Un socio
+> eliminado (baja lógica) directamente responde `404`.
+
+**El control real contra un carnet prestado es la foto, no el secreto del código.**
+Como el código es fijo, una captura de pantalla sirve siempre. Lo que distingue al
+titular es la cara en la pantalla de quien cobra: por eso `fotoUrl` no es decorativa.
+Es el mismo criterio de cualquier carnet físico.
+
+**La foto se puede volcar en un canvas.** El carnet se descarga como imagen, y para
+eso el navegador tiene que dejar dibujar la foto del socio adentro. `/uploads/` se
+monta **después** de `enableCors` justamente por eso: así las fotos salen con
+`Access-Control-Allow-Origin` y no "contaminan" el canvas. El frontend tiene que
+cargarlas con `crossOrigin="anonymous"`, y el origen desde el que se abre el panel
+tiene que estar en `CORS_ORIGINS` (si se prueba por la IP de red, agregarla ahí).
+
+> `SITIO_URL` (variable de entorno nueva) es la base del enlace y apunta al **sitio**,
+> no a la API. Con el valor por defecto (`http://localhost:3000`) el QR **no se puede
+> escanear desde un celular**: para probarlo hay que poner la IP de red de la máquina
+> (ej. `http://192.168.0.10:3000`) y en producción el dominio del club.
 
 ### Solicitudes de alta — "Hacete socio" (implementado)
 
@@ -324,7 +388,7 @@ Credenciales de desarrollo en `.env` (`SEED_ADMIN_*`): DNI `20000001`, clave `Cd
 ## Modelo de datos (backend)
 
 - `usuarios`: identidad + credenciales (`dni` único, `nombre`, `apellido`, `password_hash`, `rol`, `must_change_password`, `last_login_at`).
-- `socios`: ficha de membresía 1:1 con `usuarios` (`numero_socio` serial, domicilio, localidad, email, teléfono, fecha de nacimiento, `foto_url`, `tipo_socio_id`, `estado`, `vigencia_desde`, `vigencia_hasta`, `deleted_at`). DNI/nombre/apellido se leen del usuario (una sola fuente de verdad).
+- `socios`: ficha de membresía 1:1 con `usuarios` (`numero_socio` serial, domicilio, localidad, email, teléfono, fecha de nacimiento, `foto_url`, `tipo_socio_id`, `estado`, `vigencia_desde`, `vigencia_hasta`, `codigo_qr`, `deleted_at`). DNI/nombre/apellido se leen del usuario (una sola fuente de verdad).
 - `tipos_socio`: `nombre` único, `descripcion`, `monto_cuota`, `activo`.
 - `cuentas`: destino de los cobros (`nombre` único, `tipo`, `identificador`, `activa`).
 - `cambios_password`: cuándo cambió su clave cada usuario y si fue voluntario (no guarda hashes). Sirve para el límite de 2 cada 30 días.
