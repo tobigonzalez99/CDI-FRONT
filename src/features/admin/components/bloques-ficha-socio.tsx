@@ -16,7 +16,7 @@ import {
   useReactivarSocio,
   useTiposSocio,
 } from "@/features/admin/hooks/use-socios";
-import { aplicarFieldErrors, mensajeDeError } from "@/lib/api/errors";
+import { aplicarFieldErrors, esApiError, mensajeDeError } from "@/lib/api/errors";
 import { formatearFecha, formatearMonto, formatearVigencia } from "@/lib/formato";
 import {
   construirMembresiaSchema,
@@ -62,7 +62,14 @@ function useGuardarBloque<T extends FieldValues>(
       toast.success("Listo, se guardaron los cambios");
       alTerminar();
     } catch (error) {
-      if (!aplicarFieldErrors(error, setError, campos)) {
+      const enLosCampos = aplicarFieldErrors(error, setError, campos);
+
+      // En un conflicto el campo dice qué choca, pero el mensaje general dice
+      // qué hacer (por ejemplo, resolver la solicitud desde Solicitudes): ese
+      // se muestra igual, aunque el error ya esté pintado en el campo.
+      const esConflicto = esApiError(error) && error.code === "CONFLICT";
+
+      if (!enLosCampos || esConflicto) {
         toast.error("No pudimos guardar los cambios", {
           description: mensajeDeError(error),
         });
