@@ -23,3 +23,27 @@ export interface EstadoPagoMpResponse {
   estado: EstadoPagoMp;
   tipo: TipoPagoMp;
 }
+
+/** Meses que se pueden pagar de una vez desde el perfil. */
+export const MESES_PAGO_ONLINE = { min: 1, max: 12 } as const;
+
+/** Lo que cuesta pagar `meses` cuotas. Lo calcula siempre el backend. */
+export interface CotizacionCuota {
+  meses: number;
+  montoMensual: number;
+  total: number;
+}
+
+export interface IniciarPagoCuotaInput {
+  meses: number;
+}
+
+/**
+ * El cobro creado en Mercado Pago. `total` vuelve para compararlo con el que
+ * se le mostró al socio antes de mandarlo a pagar.
+ */
+export interface IniciarPagoCuotaResponse {
+  initPoint: string;
+  meses: number;
+  total: number;
+}

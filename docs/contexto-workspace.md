@@ -383,6 +383,59 @@ cuota que no es efectivo entra ahí.
 > "no me lo registraron" de "me lo registraron y lo anularon". **No quitar ese filtro
 > del endpoint por parecer sin uso.**
 
+### Pago de la cuota con Mercado Pago (backend implementado)
+
+El socio paga su cuota desde el perfil con **Checkout Pro**: el sitio lo manda a
+Mercado Pago, paga ahí y vuelve. Elige cuántos meses paga (1 a 12) y el **importe lo
+calcula siempre el backend**: la cuota de su categoría por los meses.
+
+| Método | Ruta | Acceso | Notas |
+|---|---|---|---|
+| GET | `/pagos/mercadopago/cotizacion?meses=N` | SOCIO | `{ meses, montoMensual, total }` |
+| POST | `/pagos/mercadopago/cuota` | SOCIO | `{ meses }` → `{ initPoint, meses, total }`. El front compara `total` con lo que mostró y hace `window.location = initPoint` |
+| GET | `/pagos/mercadopago/estado/:referencia` | **público** | `{ estado, tipo }`, para la página de vuelta. `404` si no existe. Máx. 30 por minuto y por IP |
+| POST | `/webhooks/mercadopago` | Mercado Pago | Avisos de pago. No lo llama el sitio |
+
+`estado`: `PENDIENTE` | `APROBADO` | `RECHAZADO` | `EN_REVISION`. `tipo`: `CUOTA` | `ALTA`
+(`ALTA` llega con la tarea 4).
+
+**Cómo viaja un pago.** Cada intento queda en `cobros_online` con una `referencia`
+aleatoria de 128 bits. Esa referencia va a Mercado Pago como `external_reference`, y
+las `back_urls` vuelven a `SITIO_URL/pagos/resultado?ref=<referencia>`. La página usa
+solo `ref` e ignora los parámetros que agrega Mercado Pago, que cualquiera puede escribir
+a mano.
+
+**Nunca se le cree al aviso.** Ante un webhook o una consulta de estado, el backend
+**pide el pago a Mercado Pago** con nuestras credenciales y controla que el importe y la
+moneda coincidan con lo cotizado. Recién ahí registra el `Pago` (`medio` y `origen`
+`MERCADO_PAGO`, comprobante `MP-<id del pago>`, cuenta Mercado Pago) y extiende la
+vigencia, **en una sola transacción**. Después sale el correo "Recibimos tu pago". Si el
+importe no coincide, el cobro queda `EN_REVISION` y no se registra nada.
+
+- **Idempotente.** Mercado Pago avisa varias veces del mismo pago y la página de vuelta
+  también consulta: el comprobante `MP-<id>` asegura que se registre una sola vez, y el
+  cobro se bloquea mientras se procesa.
+- **El estado no depende del webhook.** Si el cobro figura `PENDIENTE`, la consulta de
+  estado le pregunta a Mercado Pago antes de responder. En desarrollo, sin túnel,
+  todo funciona igual.
+- **Apretar "Pagar" dos veces no crea dos cobros:** si hay uno abierto por los mismos
+  meses e importe, se devuelve ese.
+- **Cada cobro se puede pagar 30 minutos.** Uno que vence sin pagarse se informa como
+  `RECHAZADO`.
+- **`binary_mode`**: aprobado o rechazado en el momento. **Sin efectivo** (se excluyen
+  `ticket` y `atm`) y **en un solo pago** (sin cuotas de tarjeta).
+- Un rechazo no pisa un cobro ya aprobado: con la misma preferencia se puede reintentar
+  con otra tarjeta.
+- Si Mercado Pago no está configurado o no responde al crear el cobro:
+  `503 PAYMENT_GATEWAY_ERROR`, y no queda nada a medias.
+
+**Variables de entorno.** `MP_ACCESS_TOKEN` (credenciales), `MP_WEBHOOK_SECRET` (valida la
+firma `x-signature` de los avisos) y `MP_WEBHOOK_URL` (base pública https para los avisos:
+el túnel en desarrollo, la API en producción). Sin `MP_WEBHOOK_URL` no hay avisos y el
+estado se resuelve al volver. `auto_return` (que Mercado Pago vuelva solo al sitio) se
+pide solo cuando `SITIO_URL` es https: en localhost el socio vuelve con el botón de
+Mercado Pago.
+
 ### Disciplinas (implementado)
 
 Actividades del club. Reemplazan al menú "Fútbol" por **"Disciplinas"**, que despliega
@@ -514,7 +567,7 @@ de un solo uso para elegir la clave.
 `VALIDATION_ERROR`, `BAD_REQUEST`, `INVALID_CREDENTIALS`, `ACCOUNT_DISABLED`, `PASSWORD_CHANGE_REQUIRED`,
 `WEAK_PASSWORD`, `SESSION_EXPIRED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`,
 `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `TOO_MANY_REQUESTS`, `PASSWORD_CHANGE_LIMIT`,
-`INVALID_TOKEN` (enlace de elegir contraseña inexistente, usado o vencido), `INTERNAL_ERROR`.
+`INVALID_TOKEN` (enlace de elegir contraseña inexistente, usado o vencido), `PAYMENT_GATEWAY_ERROR` (503: Mercado Pago sin configurar o sin responder), `INTERNAL_ERROR`.
 
 Qué debe hacer el frontend: `SESSION_EXPIRED`/`UNAUTHORIZED` → mandar a `/login`;
 `PASSWORD_CHANGE_REQUIRED` → mandar a `/cambiar-password`; `VALIDATION_ERROR` → pintar `fieldErrors` en el formulario.
@@ -553,6 +606,7 @@ los de una base existente, editarlos desde el panel (`PATCH /tipos-socio/:id`).
 - `cuentas`: destino de los cobros (`nombre` único, `tipo`, `identificador`, `activa`, `uso_sistema` = `EFECTIVO` | `MERCADO_PAGO`, único). El club usa solo esas dos cuentas: Efectivo y Mercado Pago.
 - `cambios_password`: cuándo cambió su clave cada usuario y si fue voluntario (no guarda hashes). Sirve para el límite de 2 cada 30 días.
 - `enlaces_password`: enlaces **pendientes** para elegir contraseña (`usuario_id`, `token_hash` SHA-256 único, `tipo` = `BIENVENIDA` | `RECUPERACION`, `expira_en`). Usarlo lo borra.
+- `cobros_online`: cada intento de cobro por Mercado Pago (`referencia` única = `external_reference`, `tipo`, `estado`, `socio_id`, `meses`, `monto_mensual`, `total`, `preferencia_id`, `init_point`, `expira_en`, `mp_payment_id` único, `pago_id` → el `Pago` registrado, `detalle`). No es el registro contable: ese es `pagos`.
 - `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, `origen` (`PANEL` | `MERCADO_PAGO`), quién registró (nulo solo en los cobros online), y datos de anulación).
 - `paginas`: secciones de contenido editable (`slug` único, `titulo`, `resumen`, `contenido` en Markdown, `publicada`).
 - `disciplinas`: actividades del menú (`slug` único, `orden`, `activa`). Lista plana, sin jerarquía.

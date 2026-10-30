@@ -45,6 +45,8 @@ export const API_ERROR_CODES = [
   "PASSWORD_CHANGE_LIMIT",
   /** Enlace de contraseña inexistente, ya usado o vencido. */
   "INVALID_TOKEN",
+  /** Mercado Pago no responde o no está configurado: no se pudo crear el cobro. */
+  "PAYMENT_GATEWAY_ERROR",
   "INTERNAL_ERROR",
 ] as const;
 

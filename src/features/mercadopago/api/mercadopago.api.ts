@@ -1,5 +1,10 @@
 import { api } from "@/lib/api/client";
-import type { EstadoPagoMpResponse } from "@/types/mercadopago";
+import type {
+  CotizacionCuota,
+  EstadoPagoMpResponse,
+  IniciarPagoCuotaInput,
+  IniciarPagoCuotaResponse,
+} from "@/types/mercadopago";
 
 /**
  * Cómo salió un pago, según el backend.
@@ -13,5 +18,24 @@ export async function consultarEstadoPago(ref: string): Promise<EstadoPagoMpResp
   const { data } = await api.get<EstadoPagoMpResponse>(
     `/pagos/mercadopago/estado/${encodeURIComponent(ref)}`,
   );
+  return data;
+}
+
+/** Cuánto sale pagar `meses` cuotas. El front nunca calcula importes. */
+export async function cotizarCuota(meses: number): Promise<CotizacionCuota> {
+  const { data } = await api.get<CotizacionCuota>("/pagos/mercadopago/cotizacion", {
+    params: { meses },
+  });
+  return data;
+}
+
+/**
+ * Crea el cobro en Mercado Pago. Si ya hay uno abierto por los mismos meses
+ * e importe, devuelve ese: apretar "Pagar" dos veces no crea dos cobros.
+ */
+export async function iniciarPagoCuota(
+  input: IniciarPagoCuotaInput,
+): Promise<IniciarPagoCuotaResponse> {
+  const { data } = await api.post<IniciarPagoCuotaResponse>("/pagos/mercadopago/cuota", input);
   return data;
 }

@@ -5,6 +5,7 @@ import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CambiarPasswordCard } from "@/features/auth/components/cambiar-password-card";
+import { PagarCuotaCard } from "@/features/mercadopago/components/pagar-cuota-card";
 import { HistorialPagosCard } from "@/features/pagos/components/historial-pagos-card";
 import { CarnetSocioCard } from "@/features/socios/components/carnet-socio";
 import { DatosPersonales } from "@/features/socios/components/datos-personales";
@@ -59,7 +60,8 @@ export function MiPerfil() {
               Tu cuota está pendiente de pago
             </p>
             <p className="text-sm text-red-800">
-              El período de vigencia venció. Acercate a la sede para regularizarla
+              El período de vigencia venció. Podés pagarla acá abajo con Mercado Pago o
+              en la sede del club
               {socio.tipoSocio.montoCuota !== null && (
                 <>
                   {" "}
@@ -72,6 +74,8 @@ export function MiPerfil() {
           </CardContent>
         </Card>
       )}
+
+      <PagarCuotaCard />
 
       <DatosPersonales socio={socio} />
 
