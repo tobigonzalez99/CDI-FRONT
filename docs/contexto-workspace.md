@@ -308,15 +308,28 @@ socio **nunca se acorta**: un pago viejo cargado tarde no empeora su situación.
   `requiereRevisarVigencia` y el admin la ajusta desde la ficha del socio.
 - No se aceptan cobros con fecha futura ni montos menores o iguales a cero.
 
-**Medio de pago `MERCADO_PAGO`** ("Mercado Pago (online)"): solo lo registra el
-sistema, con el pago de Mercado Pago que lo respalda. `POST /pagos` lo rechaza
-(`VALIDATION_ERROR` en `medioPago`), así que el formulario del panel no tiene que
-ofrecerlo. Un cobro por Mercado Pago que el admin carga a mano sigue siendo
-`BILLETERA_VIRTUAL`.
+**Dos cuentas y tres medios** (decisión del cliente, 2026-10-30). El club recibe plata
+solo en dos lugares, y cada medio de pago va a uno solo:
 
-**Cuenta del sistema.** Los cobros online se asientan en la cuenta con
-`usoSistema: MERCADO_PAGO` (la crea `npm run seed`, como "Mercado Pago (cobros online)").
-El sistema la busca por ese campo y no por el nombre, así que el club puede renombrarla.
+| Medio | Etiqueta | Quién lo carga | Cuenta |
+|---|---|---|---|
+| `EFECTIVO` | Efectivo | El admin, cuando se cobra en el club | **Efectivo** |
+| `TRANSFERENCIA` | Transferencia | El admin, cuando el socio transfiere al alias o CVU del club | **Mercado Pago** |
+| `MERCADO_PAGO` | Mercado Pago (online) | **Solo el sistema**, al confirmar Mercado Pago un pago hecho desde el sitio (tarjeta o dinero en cuenta) | **Mercado Pago** |
+
+- **No hay "billetera virtual".** Un pago con tarjeta dentro de Mercado Pago entra por el
+  cobro online (`MERCADO_PAGO`). Lo que se paga por Mercado Pago y carga el admin es
+  una transferencia. La migración `DosCuentas` reclasificó como transferencia los
+  cobros de prueba que lo usaban.
+- **El backend controla que el medio vaya a su cuenta.** `POST /pagos` y el `pago` del
+  alta manual responden `VALIDATION_ERROR` en `cuentaId` / `pago.cuentaId` si no
+  coinciden. Con dos cuentas, un efectivo asentado en Mercado Pago descuadra la caja
+  contra el resumen.
+- **`MERCADO_PAGO` se rechaza en los cobros manuales** (`VALIDATION_ERROR` en `medioPago`):
+  el formulario del panel ofrece solo efectivo y transferencia.
+- **Las cuentas se reconocen por `usoSistema`** (`EFECTIVO` | `MERCADO_PAGO`), que viene en
+  `GET /cuentas`. Así el panel elige la cuenta según el medio, y el sistema encuentra
+  la de Mercado Pago aunque el club las renombre. Las crea `npm run seed`.
 
 > **`anulacion` en `/pagos/mios`:** por defecto los listados excluyen los pagos anulados.
 > El perfil del socio llama a `/pagos/mios?anulacion=todos` a propósito, para que pueda
@@ -491,7 +504,7 @@ los de una base existente, editarlos desde el panel (`PATCH /tipos-socio/:id`).
 - `usuarios`: identidad + credenciales (`dni` único, `nombre`, `apellido`, `password_hash`, `rol`, `must_change_password`, `last_login_at`).
 - `socios`: ficha de membresía 1:1 con `usuarios` (`numero_socio` serial, domicilio, localidad, email, teléfono, fecha de nacimiento, `foto_url`, `tipo_socio_id`, `estado`, `vigencia_desde`, `vigencia_hasta`, `codigo_qr`, `deleted_at`). DNI/nombre/apellido se leen del usuario (una sola fuente de verdad).
 - `tipos_socio`: `nombre` único, `descripcion`, `monto_cuota`, `activo`.
-- `cuentas`: destino de los cobros (`nombre` único, `tipo`, `identificador`, `activa`, `uso_sistema` único y nulo salvo en las cuentas que usa el sistema).
+- `cuentas`: destino de los cobros (`nombre` único, `tipo`, `identificador`, `activa`, `uso_sistema` = `EFECTIVO` | `MERCADO_PAGO`, único). El club usa solo esas dos cuentas.
 - `cambios_password`: cuándo cambió su clave cada usuario y si fue voluntario (no guarda hashes). Sirve para el límite de 2 cada 30 días.
 - `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, `origen` (`PANEL` | `MERCADO_PAGO`), quién registró (nulo solo en los cobros online), y datos de anulación).
 - `paginas`: secciones de contenido editable (`slug` único, `titulo`, `resumen`, `contenido` en Markdown, `publicada`).

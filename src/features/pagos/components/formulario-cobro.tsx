@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { useForm, type SubmitHandler } from "react-hook-form";
+import { useForm, useWatch, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle, Receipt } from "lucide-react";
 import { toast } from "sonner";
@@ -17,12 +17,11 @@ import { useRegistrarPago } from "@/features/pagos/hooks/use-pago-mutations";
 import { aplicarFieldErrors, mensajeDeError } from "@/lib/api/errors";
 import { formatearMonto, formatearVigencia } from "@/lib/formato";
 import { cobroSchema, type CobroFormValues } from "@/lib/validators/pago";
-import { ETIQUETAS_MEDIO_PAGO, MEDIOS_PAGO_MANUALES } from "@/types/pago";
+import { cuentaParaMedio, ETIQUETAS_MEDIO_PAGO, MEDIOS_PAGO_MANUALES } from "@/types/pago";
 import type { Socio } from "@/types/socio";
 
 const CAMPOS = [
   "socioId",
-  "cuentaId",
   "monto",
   "medioPago",
   "fechaPago",
@@ -40,7 +39,6 @@ export function FormularioCobro() {
   const { mutateAsync: registrar } = useRegistrarPago();
 
   const ids = {
-    cuenta: useId(),
     monto: useId(),
     medio: useId(),
     fecha: useId(),
@@ -55,12 +53,12 @@ export function FormularioCobro() {
     setError,
     setValue,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<CobroFormValues>({
     resolver: zodResolver(cobroSchema),
     defaultValues: {
       socioId: "",
-      cuentaId: "",
       monto: undefined,
       medioPago: "EFECTIVO",
       fechaPago: "",
@@ -79,11 +77,22 @@ export function FormularioCobro() {
     }
   }
 
+  const medio = useWatch({ control, name: "medioPago" });
+  const cuenta = cuentas.data ? cuentaParaMedio(cuentas.data, medio) : undefined;
+
   const onSubmit: SubmitHandler<CobroFormValues> = async (valores) => {
+    const cuentaDelCobro = cuentas.data && cuentaParaMedio(cuentas.data, valores.medioPago);
+    if (!cuentaDelCobro) {
+      toast.error("No encontramos la cuenta para este medio de pago", {
+        description: "Avisanos: falta configurar la cuenta del club.",
+      });
+      return;
+    }
+
     try {
       const pago = await registrar({
         socioId: valores.socioId,
-        cuentaId: valores.cuentaId,
+        cuentaId: cuentaDelCobro.id,
         monto: valores.monto,
         medioPago: valores.medioPago,
         meses: valores.meses,
@@ -131,28 +140,6 @@ export function FormularioCobro() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor={ids.cuenta}>Cuenta</Label>
-              <select
-                id={ids.cuenta}
-                className={CLASES_SELECT}
-                aria-invalid={Boolean(errors.cuentaId)}
-                {...register("cuentaId")}
-              >
-                <option value="">Elegí una cuenta</option>
-                {cuentas.data.map((cuenta) => (
-                  <option key={cuenta.id} value={cuenta.id}>
-                    {cuenta.nombre}
-                  </option>
-                ))}
-              </select>
-              {errors.cuentaId && (
-                <p role="alert" className="text-sm text-destructive">
-                  {errors.cuentaId.message}
-                </p>
-              )}
-            </div>
-
-            <div className="grid gap-2">
               <Label htmlFor={ids.medio}>Medio de pago</Label>
               <select
                 id={ids.medio}
@@ -166,10 +153,18 @@ export function FormularioCobro() {
                   </option>
                 ))}
               </select>
-              {errors.medioPago && (
+              {errors.medioPago ? (
                 <p role="alert" className="text-sm text-destructive">
                   {errors.medioPago.message}
                 </p>
+              ) : (
+                // La cuenta no se elige: sale del medio. Se muestra igual para
+                // que quede claro adónde va el dinero.
+                cuenta && (
+                  <p className="text-xs text-muted-foreground">
+                    Entra en la cuenta «{cuenta.nombre}».
+                  </p>
+                )
               )}
             </div>
 

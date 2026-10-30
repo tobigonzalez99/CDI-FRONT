@@ -3,7 +3,13 @@ import type { ISODateString, PaginationParams } from "./api";
 export const TIPOS_CUENTA = ["EFECTIVO", "BANCARIA", "BILLETERA_VIRTUAL"] as const;
 export type TipoCuenta = (typeof TIPOS_CUENTA)[number];
 
-/** Dónde queda el dinero cobrado. Las configura el club desde el panel. */
+export const USOS_SISTEMA_CUENTA = ["EFECTIVO", "MERCADO_PAGO"] as const;
+export type UsoSistemaCuenta = (typeof USOS_SISTEMA_CUENTA)[number];
+
+/**
+ * Dónde queda el dinero cobrado. El club usa solo dos: la de efectivo y la
+ * de Mercado Pago, marcadas con `usoSistema`.
+ */
 export interface Cuenta {
   id: string;
   nombre: string;
@@ -11,6 +17,8 @@ export interface Cuenta {
   /** CBU, alias o CVU, solo como referencia. Nunca datos de tarjetas. */
   identificador: string | null;
   activa: boolean;
+  /** Para qué la usa el sistema. Con esto se elige la cuenta de cada cobro. */
+  usoSistema: UsoSistemaCuenta | null;
 }
 
 export interface CreateCuentaInput {
@@ -28,11 +36,7 @@ export type UpdateCuentaInput = Partial<CreateCuentaInput>;
  * `MERCADO_PAGO` no está a propósito: esos cobros los registra solo el
  * backend cuando Mercado Pago confirma el pago, y `POST /pagos` lo rechaza.
  */
-export const MEDIOS_PAGO_MANUALES = [
-  "EFECTIVO",
-  "TRANSFERENCIA",
-  "BILLETERA_VIRTUAL",
-] as const;
+export const MEDIOS_PAGO_MANUALES = ["EFECTIVO", "TRANSFERENCIA"] as const;
 export type MedioPagoManual = (typeof MEDIOS_PAGO_MANUALES)[number];
 
 /** Todos los medios que pueden aparecer en los listados de cobros. */
@@ -43,9 +47,28 @@ export type MedioPago = (typeof MEDIOS_PAGO)[number];
 export const ETIQUETAS_MEDIO_PAGO: Record<MedioPago, string> = {
   EFECTIVO: "Efectivo",
   TRANSFERENCIA: "Transferencia",
-  BILLETERA_VIRTUAL: "Billetera virtual",
   MERCADO_PAGO: "Mercado Pago (online)",
 };
+
+/**
+ * A qué cuenta va cada medio. El backend aplica la misma regla y rechaza un
+ * cobro que no la cumpla; acá sirve para no pedirle al admin un dato que se
+ * deduce solo: el efectivo entra en la caja, y una transferencia o un pago
+ * online entran en la cuenta de Mercado Pago del club.
+ */
+export const CUENTA_DE_CADA_MEDIO: Record<MedioPago, UsoSistemaCuenta> = {
+  EFECTIVO: "EFECTIVO",
+  TRANSFERENCIA: "MERCADO_PAGO",
+  MERCADO_PAGO: "MERCADO_PAGO",
+};
+
+/** La cuenta que corresponde a un medio, entre las que devuelve `/cuentas`. */
+export function cuentaParaMedio(
+  cuentas: readonly Cuenta[],
+  medio: MedioPago,
+): Cuenta | undefined {
+  return cuentas.find((cuenta) => cuenta.usoSistema === CUENTA_DE_CADA_MEDIO[medio]);
+}
 
 /** Datos del socio que acompañan al cobro en los listados. */
 export interface SocioDelPago {

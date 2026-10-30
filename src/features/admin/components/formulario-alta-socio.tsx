@@ -25,6 +25,7 @@ import {
 } from "@/lib/validators/socio";
 import { cn } from "@/lib/utils";
 import {
+  cuentaParaMedio,
   ETIQUETAS_MEDIO_PAGO,
   MEDIOS_PAGO_MANUALES,
   type MedioPagoManual,
@@ -44,7 +45,6 @@ const CAMPOS = [
   "tipoSocioId",
   "vigencia.desde",
   "vigencia.hasta",
-  "pago.cuentaId",
   "pago.medioPago",
   "pago.meses",
 ] as const;
@@ -72,7 +72,7 @@ function valoresIniciales(): AltaManualFormValues {
     tipoSocioId: "",
     modo: "",
     vigencia: { desde: aFecha(hoy), hasta: aFecha(addMonths(hoy, 1)) },
-    pago: { cuentaId: "", medioPago: "EFECTIVO", meses: "1", comprobante: "" },
+    pago: { medioPago: "EFECTIVO", meses: "1", comprobante: "" },
   };
 }
 
@@ -174,7 +174,6 @@ export function FormularioAltaSocio() {
     modo: useId(),
     desde: useId(),
     hasta: useId(),
-    cuenta: useId(),
     medio: useId(),
     meses: useId(),
     comprobante: useId(),
@@ -197,10 +196,14 @@ export function FormularioAltaSocio() {
     defaultValues: valoresIniciales(),
   });
 
-  const [modo, tipoSocioId, meses] = useWatch({
+  const [modo, tipoSocioId, meses, medio] = useWatch({
     control,
-    name: ["modo", "tipoSocioId", "pago.meses"],
+    name: ["modo", "tipoSocioId", "pago.meses", "pago.medioPago"],
   });
+
+  const cuenta = cuentas.data
+    ? cuentaParaMedio(cuentas.data, medio as MedioPagoManual)
+    : undefined;
 
   const categoria = tipos.data?.find((tipo) => tipo.id === tipoSocioId);
   const cantidadMeses = Number(meses);
@@ -239,16 +242,26 @@ export function FormularioAltaSocio() {
 
     const { modo: modoElegido, vigencia, pago, ...datos } = valores;
 
+    const medioElegido = pago.medioPago as MedioPagoManual;
+    const cuentaDelCobro = cuentas.data && cuentaParaMedio(cuentas.data, medioElegido);
+    if (modoElegido === "PAGA_AHORA" && !cuentaDelCobro) {
+      setError("root", {
+        type: "manual",
+        message: "No encontramos la cuenta para este medio de pago. Avisanos: falta configurarla.",
+      });
+      return;
+    }
+
     // Solo viaja el bloque del caso elegido: mandar las dos cosas le sumaría
     // al socio meses que no pagó, y el backend lo rechaza.
     const input: CreateSocioInput =
-      modoElegido === "PAGA_AHORA"
+      modoElegido === "PAGA_AHORA" && cuentaDelCobro
         ? {
             ...datos,
             foto,
             pago: {
-              cuentaId: pago.cuentaId,
-              medioPago: pago.medioPago as MedioPagoManual,
+              cuentaId: cuentaDelCobro.id,
+              medioPago: medioElegido,
               meses: Number(pago.meses),
               ...(pago.comprobante.trim() && { comprobante: pago.comprobante.trim() }),
             },
@@ -523,29 +536,10 @@ export function FormularioAltaSocio() {
             <div className="grid gap-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Campo
-                  id={ids.cuenta}
-                  etiqueta="Cuenta donde entra el dinero"
-                  error={errors.pago?.cuentaId?.message}
-                >
-                  <select
-                    id={ids.cuenta}
-                    className={CLASES_SELECT}
-                    aria-invalid={Boolean(errors.pago?.cuentaId)}
-                    {...register("pago.cuentaId")}
-                  >
-                    <option value="">Elegí una cuenta</option>
-                    {cuentas.data.map((cuenta) => (
-                      <option key={cuenta.id} value={cuenta.id}>
-                        {cuenta.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </Campo>
-
-                <Campo
                   id={ids.medio}
                   etiqueta="Medio de pago"
                   error={errors.pago?.medioPago?.message}
+                  ayuda={cuenta && `Entra en la cuenta «${cuenta.nombre}».`}
                 >
                   <select
                     id={ids.medio}

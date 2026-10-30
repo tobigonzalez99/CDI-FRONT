@@ -7,10 +7,11 @@ const hoy = () => new Date().toISOString().slice(0, 10);
 /**
  * Registro de un cobro. El backend rechaza montos <= 0 y fechas futuras;
  * acá se valida lo mismo para avisar antes de enviar.
+ *
+ * La cuenta no se pide: sale del medio de pago (`cuentaParaMedio`).
  */
 export const cobroSchema = z.object({
   socioId: z.string().min(1, "Elegí el socio"),
-  cuentaId: z.string().min(1, "Elegí la cuenta donde entra el dinero"),
   monto: z.coerce
     .number({ invalid_type_error: "Ingresá un monto" })
     .positive("El monto debe ser mayor a cero"),

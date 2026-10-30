@@ -120,8 +120,8 @@ export const altaManualSchema = datosPersonalesSchema
         message: "Elegí si ya venía pagando o si paga ahora",
       }),
     vigencia: z.object({ desde: z.string(), hasta: z.string() }),
+    /** La cuenta no se pide: sale del medio de pago (`cuentaParaMedio`). */
     pago: z.object({
-      cuentaId: z.string(),
       medioPago: z.string(),
       meses: z.string(),
       comprobante: z.string().trim().max(60, "El comprobante es muy largo"),
@@ -144,8 +144,7 @@ export const altaManualSchema = datosPersonalesSchema
     }
 
     if (valores.modo === "PAGA_AHORA") {
-      const { cuentaId, medioPago, meses } = valores.pago;
-      if (!cuentaId) problema(["pago", "cuentaId"], "Elegí la cuenta donde entra el dinero");
+      const { medioPago, meses } = valores.pago;
       if (!medioPago) problema(["pago", "medioPago"], "Elegí el medio de pago");
 
       const cantidad = Number(meses);
