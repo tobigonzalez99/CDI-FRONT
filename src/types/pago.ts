@@ -3,12 +3,12 @@ import type { ISODateString, PaginationParams } from "./api";
 export const TIPOS_CUENTA = ["EFECTIVO", "BANCARIA", "BILLETERA_VIRTUAL"] as const;
 export type TipoCuenta = (typeof TIPOS_CUENTA)[number];
 
-export const USOS_SISTEMA_CUENTA = ["EFECTIVO", "BANCO"] as const;
+export const USOS_SISTEMA_CUENTA = ["EFECTIVO", "MERCADO_PAGO"] as const;
 export type UsoSistemaCuenta = (typeof USOS_SISTEMA_CUENTA)[number];
 
 /**
  * Dónde queda el dinero cobrado. Son dos y fijas —la caja de efectivo y la
- * del banco—, marcadas con `usoSistema`. No se crean cuentas nuevas.
+ * de Mercado Pago—, marcadas con `usoSistema`. No se crean cuentas nuevas.
  */
 export interface Cuenta {
   id: string;
@@ -51,16 +51,15 @@ export const ETIQUETAS_MEDIO_PAGO: Record<MedioPago, string> = {
  * A qué cuenta va cada medio. El backend aplica la misma regla y rechaza un
  * cobro que no la cumpla; acá sirve para no pedirle al admin un dato que se
  * deduce solo: el efectivo entra en la caja, y una transferencia o un pago
- * online terminan en el banco.
+ * online entran en la cuenta de Mercado Pago del club.
  *
- * Mercado Pago es un medio, no una cuenta: el cobro online se acredita en
- * Mercado Pago y el club lo pasa al banco. El sistema registra dónde termina
- * la plata.
+ * Es Mercado Pago y no el banco porque la pasarela de pagos solo puede
+ * acreditar en una cuenta de Mercado Pago.
  */
 export const CUENTA_DE_CADA_MEDIO: Record<MedioPago, UsoSistemaCuenta> = {
   EFECTIVO: "EFECTIVO",
-  TRANSFERENCIA: "BANCO",
-  MERCADO_PAGO: "BANCO",
+  TRANSFERENCIA: "MERCADO_PAGO",
+  MERCADO_PAGO: "MERCADO_PAGO",
 };
 
 /** La cuenta que corresponde a un medio, entre las que devuelve `/cuentas`. */

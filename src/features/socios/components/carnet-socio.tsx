@@ -183,7 +183,9 @@ export function CarnetSocioCard({ socio }: { socio: CarnetSocio }) {
     diasRestantes <= DIAS_PARA_AVISAR;
 
   return (
-    <div className="space-y-3">
+    // Más angosto que la página: a todo el ancho el carnet se veía más grande
+    // que uno de verdad. Los botones de abajo acompañan ese mismo ancho.
+    <div className="mx-auto w-full max-w-xl space-y-3">
       {/*
         En el teléfono va el carnet vertical y nada más. El horizontal
         reproduce el carnet físico, que es apaisado: metido en una pantalla
@@ -194,7 +196,7 @@ export function CarnetSocioCard({ socio }: { socio: CarnetSocio }) {
         <CarnetCelular
           socio={socio}
           carnetUrl={socio.carnetUrl}
-          className="mx-auto max-w-[420px] shadow-lg ring-1 ring-black/10"
+          className="mx-auto max-w-[300px] shadow-lg ring-1 ring-black/10"
         />
       </div>
 

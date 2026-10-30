@@ -354,15 +354,13 @@ uno solo:
 | Medio | Etiqueta | Quién lo carga | Cuenta |
 |---|---|---|---|
 | `EFECTIVO` | Efectivo | El admin, cuando se cobra en el club | **Efectivo** |
-| `TRANSFERENCIA` | Transferencia | El admin, cuando el socio transfiere al CBU o alias del club, que es de Banco Provincia | **Banco Provincia** |
-| `MERCADO_PAGO` | Mercado Pago (online) | **Solo el sistema**, al confirmar Mercado Pago un pago hecho desde el sitio (tarjeta o dinero en cuenta) | **Banco Provincia** |
+| `TRANSFERENCIA` | Transferencia | El admin, cuando el socio transfiere al alias o CVU de la cuenta de Mercado Pago del club | **Mercado Pago** |
+| `MERCADO_PAGO` | Mercado Pago (online) | **Solo el sistema**, al confirmar Mercado Pago un pago hecho desde el sitio (tarjeta o dinero en cuenta) | **Mercado Pago** |
 
-**Mercado Pago es un medio, no una cuenta.** Los cobros online se acreditan primero en
-la cuenta de Mercado Pago del club, que hace falta igual porque es la dueña de las
-credenciales. Desde ahí el club pasa la plata a Banco Provincia. En el sistema figuran
-donde termina la plata. Al controlar contra el extracto, los cobros online aparecen en
-el banco agrupados en cada retiro desde Mercado Pago, no uno por uno: el detalle está
-en la actividad de Mercado Pago.
+**La cuenta digital es la de Mercado Pago del club** (decisión del 2026-10-30, que
+reemplaza a la de Banco Provincia del mismo día). La pasarela solo puede acreditar en
+una cuenta de Mercado Pago, la dueña de las credenciales, así que toda la plata de la
+cuota que no es efectivo entra ahí.
 
 - **No hay "billetera virtual".** Un pago con tarjeta dentro de Mercado Pago entra por el
   cobro online (`MERCADO_PAGO`). Lo que se paga por Mercado Pago y carga el admin es
@@ -370,14 +368,14 @@ en la actividad de Mercado Pago.
   cobros de prueba que lo usaban.
 - **El backend controla que el medio vaya a su cuenta.** `POST /pagos` y el `pago` del
   alta manual responden `VALIDATION_ERROR` en `cuentaId` / `pago.cuentaId` si no
-  coinciden. Con dos cuentas, un efectivo asentado en el banco descuadra la caja
+  coinciden. Con dos cuentas, un efectivo asentado en Mercado Pago descuadra la caja
   contra el resumen.
 - **`MERCADO_PAGO` se rechaza en los cobros manuales** (`VALIDATION_ERROR` en `medioPago`):
   el formulario del panel ofrece solo efectivo y transferencia.
-- **Las cuentas se reconocen por `usoSistema`** (`EFECTIVO` | `BANCO`), que viene en
+- **Las cuentas se reconocen por `usoSistema`** (`EFECTIVO` | `MERCADO_PAGO`), que viene en
   `GET /cuentas`. Así el panel elige la cuenta según el medio, y el sistema encuentra
-  la del banco aunque el club las renombre. Las crea `npm run seed`. El CBU o alias
-  real se carga desde el panel, en `identificador`.
+  la de Mercado Pago aunque el club las renombre. Las crea `npm run seed`. El alias o
+  CVU real se carga desde el panel, en `identificador`.
 
 > **`anulacion` en `/pagos/mios`:** por defecto los listados excluyen los pagos anulados.
 > El perfil del socio llama a `/pagos/mios?anulacion=todos` a propósito, para que pueda
@@ -552,7 +550,7 @@ los de una base existente, editarlos desde el panel (`PATCH /tipos-socio/:id`).
 - `usuarios`: identidad + credenciales (`dni` único, `nombre`, `apellido`, `password_hash`, `rol`, `must_change_password`, `last_login_at`).
 - `socios`: ficha de membresía 1:1 con `usuarios` (`numero_socio` serial, domicilio, localidad, email, teléfono, fecha de nacimiento, `foto_url`, `tipo_socio_id`, `estado`, `vigencia_desde`, `vigencia_hasta`, `codigo_qr`, `deleted_at`). DNI/nombre/apellido se leen del usuario (una sola fuente de verdad).
 - `tipos_socio`: `nombre` único, `descripcion`, `monto_cuota`, `activo`.
-- `cuentas`: destino de los cobros (`nombre` único, `tipo`, `identificador`, `activa`, `uso_sistema` = `EFECTIVO` | `BANCO`, único). El club usa solo esas dos cuentas: Efectivo y Banco Provincia.
+- `cuentas`: destino de los cobros (`nombre` único, `tipo`, `identificador`, `activa`, `uso_sistema` = `EFECTIVO` | `MERCADO_PAGO`, único). El club usa solo esas dos cuentas: Efectivo y Mercado Pago.
 - `cambios_password`: cuándo cambió su clave cada usuario y si fue voluntario (no guarda hashes). Sirve para el límite de 2 cada 30 días.
 - `enlaces_password`: enlaces **pendientes** para elegir contraseña (`usuario_id`, `token_hash` SHA-256 único, `tipo` = `BIENVENIDA` | `RECUPERACION`, `expira_en`). Usarlo lo borra.
 - `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, `origen` (`PANEL` | `MERCADO_PAGO`), quién registró (nulo solo en los cobros online), y datos de anulación).
