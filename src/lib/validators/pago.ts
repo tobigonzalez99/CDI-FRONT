@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { MEDIOS_PAGO } from "@/types/pago";
+import { MEDIOS_PAGO_MANUALES } from "@/types/pago";
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 
@@ -14,7 +14,7 @@ export const cobroSchema = z.object({
   monto: z.coerce
     .number({ invalid_type_error: "Ingresá un monto" })
     .positive("El monto debe ser mayor a cero"),
-  medioPago: z.enum(MEDIOS_PAGO, { errorMap: () => ({ message: "Elegí el medio de pago" }) }),
+  medioPago: z.enum(MEDIOS_PAGO_MANUALES, { errorMap: () => ({ message: "Elegí el medio de pago" }) }),
   fechaPago: z
     .string()
     .optional()

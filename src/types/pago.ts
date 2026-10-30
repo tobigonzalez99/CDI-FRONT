@@ -22,11 +22,21 @@ export interface CreateCuentaInput {
 
 export type UpdateCuentaInput = Partial<CreateCuentaInput>;
 
-export const MEDIOS_PAGO = [
+/**
+ * Medios con los que el club registra un cobro a mano desde el panel.
+ *
+ * `MERCADO_PAGO` no está a propósito: esos cobros los registra solo el
+ * backend cuando Mercado Pago confirma el pago, y `POST /pagos` lo rechaza.
+ */
+export const MEDIOS_PAGO_MANUALES = [
   "EFECTIVO",
   "TRANSFERENCIA",
   "BILLETERA_VIRTUAL",
 ] as const;
+export type MedioPagoManual = (typeof MEDIOS_PAGO_MANUALES)[number];
+
+/** Todos los medios que pueden aparecer en los listados de cobros. */
+export const MEDIOS_PAGO = [...MEDIOS_PAGO_MANUALES, "MERCADO_PAGO"] as const;
 export type MedioPago = (typeof MEDIOS_PAGO)[number];
 
 /** Etiquetas para mostrar; el backend ya las usa en el resumen. */
@@ -34,6 +44,7 @@ export const ETIQUETAS_MEDIO_PAGO: Record<MedioPago, string> = {
   EFECTIVO: "Efectivo",
   TRANSFERENCIA: "Transferencia",
   BILLETERA_VIRTUAL: "Billetera virtual",
+  MERCADO_PAGO: "Mercado Pago (online)",
 };
 
 /** Datos del socio que acompañan al cobro en los listados. */
@@ -77,7 +88,8 @@ export interface CreatePagoInput {
   socioId: string;
   cuentaId: string;
   monto: number;
-  medioPago: MedioPago;
+  /** Solo los manuales: los cobros de Mercado Pago los registra el backend. */
+  medioPago: MedioPagoManual;
   fechaPago?: ISODateString;
   meses?: number;
   comprobante?: string;

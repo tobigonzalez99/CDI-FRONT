@@ -217,7 +217,10 @@ ficha de sus hijos menores; exigirlo único bloquearía altas legítimas.
 
 El DNI y el email se validan contra los socios registrados **y** contra las demás
 solicitudes pendientes, y el conflicto llega en `fieldErrors` indicando cuál de los dos
-casos es. Un socio dado de baja lógicamente **sigue ocupando** su DNI y su correo
+casos es. **Y al revés:** el alta manual (`POST /socios`) y la edición del DNI o del
+correo de un socio chocan con las solicitudes pendientes (`409`, "esta persona ya se
+postuló desde el sitio"). Sin eso, esa solicitud ya no se podría aprobar y, con el
+pago online, alguien que pagó se quedaría sin cuenta. Un socio dado de baja lógicamente **sigue ocupando** su DNI y su correo
 (igual que el índice único de la base): para reincorporarlo hay que restaurar su ficha,
 no crear otra.
 
@@ -277,11 +280,24 @@ socio **nunca se acorta**: un pago viejo cargado tarde no empeora su situación.
 - Los **totales se calculan** sobre los pagos vigentes; no hay ningún acumulado guardado
   que pueda desfasarse.
 - Montos en `numeric`, nunca en punto flotante.
-- Queda asentado **quién registró** cada cobro.
+- Queda asentado **quién registró** cada cobro. Los del panel, el admin que los cargó.
+  Los cobros online (`origen: MERCADO_PAGO`) los registra el sistema al confirmarlos
+  Mercado Pago, así que no tienen usuario: en `registradoPor` llega el texto
+  `"Pago online (Mercado Pago)"`. La base exige que todo cobro del panel tenga usuario.
 - Anular **no revierte la vigencia**: puede estar sostenida por otros pagos y adivinar
   cuál corresponde llevaría a errores silenciosos. La respuesta avisa con
   `requiereRevisarVigencia` y el admin la ajusta desde la ficha del socio.
 - No se aceptan cobros con fecha futura ni montos menores o iguales a cero.
+
+**Medio de pago `MERCADO_PAGO`** ("Mercado Pago (online)"): solo lo registra el
+sistema, con el pago de Mercado Pago que lo respalda. `POST /pagos` lo rechaza
+(`VALIDATION_ERROR` en `medioPago`), así que el formulario del panel no tiene que
+ofrecerlo. Un cobro por Mercado Pago que el admin carga a mano sigue siendo
+`BILLETERA_VIRTUAL`.
+
+**Cuenta del sistema.** Los cobros online se asientan en la cuenta con
+`usoSistema: MERCADO_PAGO` (la crea `npm run seed`, como "Mercado Pago (cobros online)").
+El sistema la busca por ese campo y no por el nombre, así que el club puede renombrarla.
 
 > **`anulacion` en `/pagos/mios`:** por defecto los listados excluyen los pagos anulados.
 > El perfil del socio llama a `/pagos/mios?anulacion=todos` a propósito, para que pueda
@@ -439,8 +455,12 @@ Credenciales de desarrollo en `.env` (`SEED_ADMIN_*`): DNI `20000001`, clave `Cd
 
 | Categoría | Descripción | Cuota |
 |---|---|---|
-| Socio Activo | Socio activo, con beneficios exclusivos. | $20.000 |
-| Socio Protector | Mitad de precio y algunos beneficios. | $10.000 |
+| Socio Activo | Socio activo, con beneficios exclusivos. | $8.000 |
+| Socio Protector | Mitad de precio y algunos beneficios. | $4.000 |
+
+Montos definidos por el cliente el 2026-10-30. En la semilla, el Protector se calcula
+como la mitad de `CUOTA_BASE`. La semilla no pisa los montos ya guardados: para cambiar
+los de una base existente, editarlos desde el panel (`PATCH /tipos-socio/:id`).
 
 > ⚠️ **Provisional:** los montos y los datos del administrador son placeholders para
 > desarrollo y testing, pendientes de confirmar con el club. Para sumar categorías,
@@ -452,9 +472,9 @@ Credenciales de desarrollo en `.env` (`SEED_ADMIN_*`): DNI `20000001`, clave `Cd
 - `usuarios`: identidad + credenciales (`dni` único, `nombre`, `apellido`, `password_hash`, `rol`, `must_change_password`, `last_login_at`).
 - `socios`: ficha de membresía 1:1 con `usuarios` (`numero_socio` serial, domicilio, localidad, email, teléfono, fecha de nacimiento, `foto_url`, `tipo_socio_id`, `estado`, `vigencia_desde`, `vigencia_hasta`, `codigo_qr`, `deleted_at`). DNI/nombre/apellido se leen del usuario (una sola fuente de verdad).
 - `tipos_socio`: `nombre` único, `descripcion`, `monto_cuota`, `activo`.
-- `cuentas`: destino de los cobros (`nombre` único, `tipo`, `identificador`, `activa`).
+- `cuentas`: destino de los cobros (`nombre` único, `tipo`, `identificador`, `activa`, `uso_sistema` único y nulo salvo en las cuentas que usa el sistema).
 - `cambios_password`: cuándo cambió su clave cada usuario y si fue voluntario (no guarda hashes). Sirve para el límite de 2 cada 30 días.
-- `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, quién registró, y datos de anulación).
+- `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, `origen` (`PANEL` | `MERCADO_PAGO`), quién registró (nulo solo en los cobros online), y datos de anulación).
 - `paginas`: secciones de contenido editable (`slug` único, `titulo`, `resumen`, `contenido` en Markdown, `publicada`).
 - `disciplinas`: actividades del menú (`slug` único, `orden`, `activa`). Lista plana, sin jerarquía.
 - `solicitudes_socio`: postulaciones pendientes (datos del formulario + `foto_path` + `tipo_socio_id`). `dni` y `email` únicos. Se borra al aprobar o rechazar.
@@ -464,5 +484,5 @@ Credenciales de desarrollo en `.env` (`SEED_ADMIN_*`): DNI `20000001`, clave `Cd
 
 ## Comandos rápidos
 
-Backend (`cdi-backend/`): `npm run start:dev`, `npm test`, `npm run lint`, `npm run migration:generate -- src/database/migrations/<Nombre>`, `npm run migration:run`, `npm run seed`, `npm run seed:dev` (datos de prueba para el frontend; credenciales en el README del backend), `npm run avisos:enviar` (manda ya los avisos de cuota y saludos de cumpleaños del día; en desarrollo acepta una fecha para simular).
+Backend (`cdi-backend/`): `npm run start:dev`, `npm test`, `npm run lint`, `npm run migration:generate -- src/database/migrations/<Nombre>`, `npm run migration:run`, `npm run seed`, `npm run seed:dev` (datos de prueba para el frontend; credenciales en el README del backend), `npm run avisos:enviar` (manda ya los avisos de cuota y saludos de cumpleaños del día; en desarrollo acepta una fecha para simular), `npm run mp:verificar` (comprueba las credenciales de Mercado Pago del `.env` sin mostrarlas).
 Frontend (`cdi-frontend/`): `npm run dev`, `npm run lint`, `npm run build`.

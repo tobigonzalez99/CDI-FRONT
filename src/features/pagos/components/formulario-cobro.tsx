@@ -17,7 +17,7 @@ import { useRegistrarPago } from "@/features/pagos/hooks/use-pago-mutations";
 import { aplicarFieldErrors, mensajeDeError } from "@/lib/api/errors";
 import { formatearMonto, formatearVigencia } from "@/lib/formato";
 import { cobroSchema, type CobroFormValues } from "@/lib/validators/pago";
-import { ETIQUETAS_MEDIO_PAGO, MEDIOS_PAGO } from "@/types/pago";
+import { ETIQUETAS_MEDIO_PAGO, MEDIOS_PAGO_MANUALES } from "@/types/pago";
 import type { Socio } from "@/types/socio";
 
 const CAMPOS = [
@@ -160,7 +160,7 @@ export function FormularioCobro() {
                 aria-invalid={Boolean(errors.medioPago)}
                 {...register("medioPago")}
               >
-                {MEDIOS_PAGO.map((medio) => (
+                {MEDIOS_PAGO_MANUALES.map((medio) => (
                   <option key={medio} value={medio}>
                     {ETIQUETAS_MEDIO_PAGO[medio]}
                   </option>
