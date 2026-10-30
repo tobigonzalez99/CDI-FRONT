@@ -31,6 +31,21 @@ const nextConfig: NextConfig = {
   images: { remotePatterns: origenDeArchivos() },
 
   /**
+   * La página de elegir contraseña llega con el token del correo en la URL.
+   * La página lo saca de la barra apenas lo lee, pero hasta entonces podría
+   * viajar en el `Referer` de cualquier recurso o enlace a otro sitio.
+   * `no-referrer` corta eso: con el token, cualquiera elige la contraseña.
+   */
+  async headers() {
+    return [
+      {
+        source: "/elegir-password",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+    ];
+  },
+
+  /**
    * El menú "Fútbol" pasó a ser "Disciplinas" y las categorías dejaron de
    * colgar de él. Estas redirecciones evitan que un enlace guardado a las
    * rutas viejas termine en un 404.

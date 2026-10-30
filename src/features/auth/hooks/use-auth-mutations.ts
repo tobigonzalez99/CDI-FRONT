@@ -6,8 +6,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   cambiarPassword,
   cambiarPasswordInicial,
+  elegirPasswordConEnlace,
   login,
   logout,
+  pedirRecuperacion,
 } from "@/features/auth/api/auth.api";
 import { SESSION_QUERY_KEY, escribirSesion } from "@/features/auth/hooks/use-session";
 import { destinoTrasLogin, ROUTES } from "@/lib/routes";
@@ -68,5 +70,28 @@ export function useCambiarPassword() {
   return useMutation({
     mutationFn: cambiarPassword,
     onSuccess: (session: Session) => escribirSesion(queryClient, session),
+  });
+}
+
+/** "Olvidé mi contraseña": pide el enlace por correo. */
+export function usePedirRecuperacion() {
+  return useMutation({ mutationFn: pedirRecuperacion });
+}
+
+/**
+ * Elegir la contraseña desde el enlace del correo. El backend deja la sesión
+ * iniciada, así que se lleva a la persona directo a su sección.
+ */
+export function useElegirPasswordConEnlace() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: elegirPasswordConEnlace,
+    onSuccess: (session: Session) => {
+      escribirSesion(queryClient, session);
+      router.replace(destinoTrasLogin(session.user));
+      router.refresh();
+    },
   });
 }

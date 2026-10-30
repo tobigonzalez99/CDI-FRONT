@@ -47,7 +47,7 @@ CDI/
 | Carnet QR | `socios.codigoQr` (aleatorio, único, nulo hasta generarlo) y `carnetUrl` (`SITIO_URL/carnet/<codigo>`), que arma el backend. El escaneo es público |
 | Estado cuota | `AL_DIA` \| `PENDIENTE` — **calculado** por el backend comparando la vigencia con la fecha actual en `America/Argentina/Buenos_Aires`. No se persiste. |
 | Tipos de socio | Entidad configurable (`TipoSocio`), no enum. El alta de socio recibe `tipoSocioId`. |
-| Alta de socio | JSON o `multipart/form-data` (archivo `foto` opcional; `vigencia` y `pago`, si van, serializados como JSON). Lleva `vigencia` **o** `pago`, nunca los dos. Respuesta `{ socio, passwordInicial }` (la clave se muestra una única vez). |
+| Alta de socio | JSON o `multipart/form-data` (archivo `foto` opcional; `vigencia` y `pago`, si van, serializados como JSON). Lleva `vigencia` **o** `pago`, nunca los dos. Respuesta `{ socio, passwordInicial, correoBienvenidaEnviado }` (la clave se muestra una única vez). |
 | Paginación | Query `page`, `pageSize` (máx. 100). Respuesta `{ data, total, page, pageSize, totalPages }`. |
 | Errores | `{ status, code, message, fieldErrors? }` — `fieldErrors: Record<campo, string[]>` (claves con notación de puntos: `vigencia.hasta`) para mapear a React Hook Form. **Todas** las respuestas de error usan esta forma. |
 
@@ -60,9 +60,46 @@ CDI/
 | GET | `/auth/me` | autenticado (vale con clave pendiente) | `{ user, expiresAt }` |
 | POST | `/auth/change-initial-password` | autenticado (vale con clave pendiente) | HU-03: `{ newPassword, confirmPassword }` → sesión nueva |
 | POST | `/auth/change-password` | autenticado | HU-05: agrega `currentPassword` → sesión nueva |
+| POST | `/auth/forgot-password` | **público** | `{ email }` → `204` **siempre**. Si es de un socio activo, le llega el enlace. Máx. 3 por minuto y por IP |
+| POST | `/auth/password-link/validate` | **público** | `{ token }` → `{ tipo: 'BIENVENIDA' \| 'RECUPERACION', nombre }`, o `400 INVALID_TOKEN` |
+| POST | `/auth/reset-password` | **público** | `{ token, newPassword, confirmPassword }` → `{ user, expiresAt }` + cookie: **deja la sesión iniciada** |
 
 El frontend debe usar `withCredentials: true` en todas las llamadas. Tras cambiar la contraseña
 se emite un token nuevo, así que conviene refrescar la sesión con la respuesta recibida.
+
+### Elegir la contraseña por correo: bienvenida y recuperación (implementado)
+
+Los dos correos llevan el mismo tipo de enlace: `SITIO_URL/elegir-password?token=<token>`.
+La página lee el `token`, lo valida con `password-link/validate` (para saludar con el nombre
+y saber qué texto mostrar) y manda la clave elegida a `reset-password`.
+
+| Correo | Cuándo sale | Vigencia del enlace |
+|---|---|---|
+| **Bienvenida** | Al crear un socio: alta manual del panel, aprobación de una solicitud y, más adelante, el alta automática por pago. Lleva su DNI (el usuario de ingreso) | 7 días |
+| **Recuperación** | Desde "¿Olvidaste tu contraseña?" (`forgot-password`) | 1 hora |
+
+- **El correo nunca lleva la contraseña**, solo el enlace: un correo queda guardado para
+  siempre, y una clave escrita ahí es una clave expuesta. La `passwordInicial` sigue
+  volviendo en la respuesta del alta, para quien no tenga acceso a su correo.
+- **`correoBienvenidaEnviado`** en la respuesta del alta (`POST /socios` y
+  `/solicitudes/:id/aprobar`) dice si el correo salió. Si es `false`, el admin tiene que
+  entregar la clave inicial. Que falle el correo **no** deshace el alta.
+- **Un solo uso.** Usarlo lo borra, pedir uno nuevo anula los anteriores, y **cualquier
+  cambio de contraseña anula los pendientes**. Por ejemplo, el de bienvenida de alguien
+  que ya entró con la clave inicial.
+- **En la base se guarda solo el hash** del token (SHA-256): quien lea la tabla no puede
+  armar un enlace que funcione. El token tiene 256 bits.
+- **`forgot-password` no delata nada.** Responde `204` exista o no el correo, y no espera el
+  envío, así que tampoco tarda distinto. Si se pide de nuevo antes de 2 minutos para la
+  misma cuenta, no reenvía.
+- **No cuenta como cambio voluntario.** Perder la clave, o recibir la primera, no es
+  decidir cambiarla: no consume los 2 cambios por mes.
+- Un socio dado de baja después de recibir el enlace no puede usarlo (`403 ACCOUNT_DISABLED`).
+- **El admin no tiene correo**, así que no puede recuperar su clave por este camino.
+
+> El `token` viaja en la URL. Para que no se filtre a otros sitios, la página
+> `/elegir-password` tiene que sacarlo de la barra de direcciones apenas lo lee
+> (`history.replaceState`) y usar `Referrer-Policy: no-referrer`.
 
 ### Endpoints de socios y tipos de socio (implementados)
 
@@ -115,10 +152,10 @@ voluntario**: perder la clave no es lo mismo que decidir cambiarla, así que no 
 ninguno de los dos cambios que puede hacer cada 30 días.
 
 > ⚠️ **Implementado y verificado, pero a propósito NO conectado al panel.** Decisión del
-> 2026-10-29: el camino para el socio que olvida su clave va a ser la **recuperación por
-> correo**, prevista para unas tareas más adelante. Este endpoint queda como la salida
-> para quien no tenga acceso a su correo. **No sumarlo a la interfaz del panel sin que lo
-> pida el cliente.**
+> 2026-10-29: el camino para el socio que olvida su clave es la **recuperación por correo**
+> (`/auth/forgot-password`, implementada). Este endpoint queda como la salida para quien
+> no tenga acceso a su correo. **No sumarlo a la interfaz del panel sin que lo pida el
+> cliente.**
 
 **Cambiar el DNI cambia el usuario de ingreso:** es el dato con el que el socio entra
 al sitio. Tras un cambio, el DNI viejo deja de servir para iniciar sesión.
@@ -136,7 +173,9 @@ objetos anidados. En `application/json` va como objeto normal.
 en la base se guarda solo la ruta relativa.
 
 > `passwordInicial` se devuelve **una única vez**, al crear el socio. No hay forma de
-> volver a consultarla: el admin tiene que copiarla y entregarla en ese momento.
+> volver a consultarla. Si `correoBienvenidaEnviado` es `true`, el socio elige la suya con
+> el enlace del correo. Si es `false`, el admin tiene que copiarla y entregarla en ese
+> momento.
 
 ### Carnet digital y QR (backend implementado)
 
@@ -477,7 +516,7 @@ de un solo uso para elegir la clave.
 `VALIDATION_ERROR`, `BAD_REQUEST`, `INVALID_CREDENTIALS`, `ACCOUNT_DISABLED`, `PASSWORD_CHANGE_REQUIRED`,
 `WEAK_PASSWORD`, `SESSION_EXPIRED`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`,
 `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `TOO_MANY_REQUESTS`, `PASSWORD_CHANGE_LIMIT`,
-`INTERNAL_ERROR`.
+`INVALID_TOKEN` (enlace de elegir contraseña inexistente, usado o vencido), `INTERNAL_ERROR`.
 
 Qué debe hacer el frontend: `SESSION_EXPIRED`/`UNAUTHORIZED` → mandar a `/login`;
 `PASSWORD_CHANGE_REQUIRED` → mandar a `/cambiar-password`; `VALIDATION_ERROR` → pintar `fieldErrors` en el formulario.
@@ -515,6 +554,7 @@ los de una base existente, editarlos desde el panel (`PATCH /tipos-socio/:id`).
 - `tipos_socio`: `nombre` único, `descripcion`, `monto_cuota`, `activo`.
 - `cuentas`: destino de los cobros (`nombre` único, `tipo`, `identificador`, `activa`, `uso_sistema` = `EFECTIVO` | `BANCO`, único). El club usa solo esas dos cuentas: Efectivo y Banco Provincia.
 - `cambios_password`: cuándo cambió su clave cada usuario y si fue voluntario (no guarda hashes). Sirve para el límite de 2 cada 30 días.
+- `enlaces_password`: enlaces **pendientes** para elegir contraseña (`usuario_id`, `token_hash` SHA-256 único, `tipo` = `BIENVENIDA` | `RECUPERACION`, `expira_en`). Usarlo lo borra.
 - `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, `origen` (`PANEL` | `MERCADO_PAGO`), quién registró (nulo solo en los cobros online), y datos de anulación).
 - `paginas`: secciones de contenido editable (`slug` único, `titulo`, `resumen`, `contenido` en Markdown, `publicada`).
 - `disciplinas`: actividades del menú (`slug` único, `orden`, `activa`). Lista plana, sin jerarquía.

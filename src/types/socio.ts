@@ -138,6 +138,12 @@ export type UpdateSocioInput = Partial<DatosDelAlta> & {
 export interface CreateSocioResponse {
   socio: Socio;
   passwordInicial: string;
+  /**
+   * Si salió el correo de bienvenida con el enlace para elegir la contraseña.
+   * La clave inicial se muestra igual en los dos casos: es el respaldo por si
+   * el correo no llega.
+   */
+  correoBienvenidaEnviado: boolean;
 }
 
 /** HU-08: filtros y búsqueda del listado de socios. */

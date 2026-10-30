@@ -43,6 +43,8 @@ export const API_ERROR_CODES = [
   "UNSUPPORTED_MEDIA_TYPE",
   "TOO_MANY_REQUESTS",
   "PASSWORD_CHANGE_LIMIT",
+  /** Enlace de contraseña inexistente, ya usado o vencido. */
+  "INVALID_TOKEN",
   "INTERNAL_ERROR",
 ] as const;
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, TriangleAlert } from "lucide-react";
+import { Check, Copy, MailCheck, TriangleAlert } from "lucide-react";
 
 import {
   Dialog,
@@ -68,11 +68,27 @@ export function PasswordInicialDialog({
         </DialogHeader>
 
         <div className="space-y-3">
-          <p className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
-            Copiala y entregala ahora. No se puede volver a consultar: si se pierde,
-            hay que generar una nueva.
-          </p>
+          {/*
+            Con el correo enviado, la clave es solo un respaldo; sin correo, es
+            la única forma de que la persona entre. Los dos avisos lo dicen
+            así para que el admin sepa si tiene que entregarla sí o sí.
+          */}
+          {resultado?.correoBienvenidaEnviado ? (
+            <p className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/10 p-3 text-sm">
+              <MailCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+              <span>
+                Le mandamos un correo a <strong>{resultado.socio.email}</strong> para que
+                elija su contraseña. Si no lo recibe, esta es su clave inicial. No se puede
+                volver a consultar: copiala ahora.
+              </span>
+            </p>
+          ) : (
+            <p className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+              No se pudo enviar el correo de bienvenida. Entregale esta clave inicial:
+              no se puede volver a consultar, así que copiala ahora.
+            </p>
+          )}
 
           <div className="rounded-lg border bg-muted/40 p-4">
             <p className="text-xs text-muted-foreground">Contraseña inicial</p>

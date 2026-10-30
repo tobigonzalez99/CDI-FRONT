@@ -56,6 +56,35 @@ export type AuthErrorCode =
   | "PASSWORD_CHANGE_REQUIRED"
   | "WEAK_PASSWORD"
   | "SESSION_EXPIRED"
-  | "FORBIDDEN";
+  | "FORBIDDEN"
+  | "INVALID_TOKEN"
+  | "TOO_MANY_REQUESTS";
 
 export type AuthError = ApiError<AuthErrorCode>;
+
+/** Pedido de recuperación: siempre responde lo mismo, exista o no el correo. */
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+/** El token que llega en el enlace de los correos. */
+export interface PasswordLinkInput {
+  token: string;
+}
+
+/**
+ * Para qué es el enlace. La bienvenida la manda el alta del socio (dura 7
+ * días); la recuperación, el pedido de "olvidé mi contraseña" (dura 1 hora).
+ */
+export const TIPOS_ENLACE_PASSWORD = ["BIENVENIDA", "RECUPERACION"] as const;
+export type TipoEnlacePassword = (typeof TIPOS_ENLACE_PASSWORD)[number];
+
+export interface PasswordLinkInfo {
+  tipo: TipoEnlacePassword;
+  nombre: string;
+}
+
+/** Elegir la contraseña desde el enlace. Misma política que el cambio forzado. */
+export interface ResetPasswordInput extends ForcedChangePasswordInput {
+  token: string;
+}
