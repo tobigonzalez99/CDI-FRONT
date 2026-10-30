@@ -23,6 +23,8 @@ export const datosPersonalesSchema = z.object({
   dni: z
     .string()
     .trim()
+    // Antes que el formato: vacío, "solo números" no le dice qué hacer.
+    .min(1, "Ingresá el DNI")
     .regex(/^\d+$/, "El DNI debe tener solo números, sin puntos")
     .min(7, "El DNI debe tener al menos 7 dígitos")
     .max(8, "El DNI debe tener como máximo 8 dígitos"),
@@ -82,3 +84,78 @@ export function construirMembresiaSchema(vigenciaDesde: string) {
 }
 
 export type MembresiaFormValues = z.infer<ReturnType<typeof construirMembresiaSchema>>;
+
+/**
+ * Alta manual desde el panel: cargar a un socio que ya venía pagando.
+ *
+ * Reúne los mismos campos que la edición por bloques, más la categoría y la
+ * vigencia completa. La foto no pasa por acá: es un archivo y es opcional,
+ * porque al cargar el padrón actual casi nunca se tiene a mano. El socio la
+ * sube después desde su perfil.
+ */
+export const MODOS_ALTA = ["VENIA_PAGANDO", "PAGA_AHORA"] as const;
+export type ModoAlta = (typeof MODOS_ALTA)[number];
+
+/** Mínimo y máximo de meses en un cobro: el mismo límite que el cobro manual. */
+export const MESES_COBRO = { min: 1, max: 24 } as const;
+
+const esFecha = (valor: string) => !Number.isNaN(Date.parse(valor));
+
+/**
+ * Los dos bloques —vigencia y cobro— están siempre en el formulario, pero
+ * solo se valida el del caso elegido: el otro queda oculto y no se envía.
+ * Por eso son texto suelto y la validación va en `superRefine`.
+ */
+export const altaManualSchema = datosPersonalesSchema
+  .merge(contactoSchema)
+  .extend({
+    tipoSocioId: z.string().min(1, "Elegí una categoría"),
+    /**
+     * Sin valor por defecto a propósito: elegir mal el caso le carga al socio
+     * una vigencia equivocada sin que nadie lo note. Mejor que lo elijan.
+     */
+    modo: z
+      .string()
+      .refine((valor): valor is ModoAlta => (MODOS_ALTA as readonly string[]).includes(valor), {
+        message: "Elegí si ya venía pagando o si paga ahora",
+      }),
+    vigencia: z.object({ desde: z.string(), hasta: z.string() }),
+    pago: z.object({
+      cuentaId: z.string(),
+      medioPago: z.string(),
+      meses: z.string(),
+      comprobante: z.string().trim().max(60, "El comprobante es muy largo"),
+    }),
+  })
+  .superRefine((valores, ctx) => {
+    const problema = (path: (string | number)[], message: string) =>
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path, message });
+
+    if (valores.modo === "VENIA_PAGANDO") {
+      const { desde, hasta } = valores.vigencia;
+      if (!desde) problema(["vigencia", "desde"], "Elegí desde cuándo es socio");
+      else if (!esFecha(desde)) problema(["vigencia", "desde"], "La fecha no es válida");
+
+      if (!hasta) problema(["vigencia", "hasta"], "Elegí hasta cuándo tiene la cuota paga");
+      else if (!esFecha(hasta)) problema(["vigencia", "hasta"], "La fecha no es válida");
+      else if (desde && hasta < desde) {
+        problema(["vigencia", "hasta"], "El vencimiento no puede ser anterior al inicio");
+      }
+    }
+
+    if (valores.modo === "PAGA_AHORA") {
+      const { cuentaId, medioPago, meses } = valores.pago;
+      if (!cuentaId) problema(["pago", "cuentaId"], "Elegí la cuenta donde entra el dinero");
+      if (!medioPago) problema(["pago", "medioPago"], "Elegí el medio de pago");
+
+      const cantidad = Number(meses);
+      if (!Number.isInteger(cantidad) || cantidad < MESES_COBRO.min || cantidad > MESES_COBRO.max) {
+        problema(
+          ["pago", "meses"],
+          `Elegí entre ${MESES_COBRO.min} y ${MESES_COBRO.max} meses`,
+        );
+      }
+    }
+  });
+
+export type AltaManualFormValues = z.input<typeof altaManualSchema>;

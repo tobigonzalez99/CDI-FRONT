@@ -1,6 +1,8 @@
 import { api } from "@/lib/api/client";
 import type { PaginatedResponse } from "@/types/api";
 import type {
+  CreateSocioInput,
+  CreateSocioResponse,
   GenerarQrResponse,
   Socio,
   SocioFilters,
@@ -24,6 +26,33 @@ export async function listarSocios(
   const { data } = await api.get<PaginatedResponse<Socio>>("/socios", {
     params: limpiarParams(filtros),
   });
+  return data;
+}
+
+/**
+ * Alta manual desde el panel. La respuesta trae `passwordInicial` **una
+ * única vez**.
+ *
+ * Sin foto va como JSON. Con foto va como `multipart/form-data`, y ahí la
+ * vigencia o el cobro viajan serializados en un solo campo, porque multer no
+ * reconstruye objetos anidados.
+ */
+export async function crearSocio(input: CreateSocioInput): Promise<CreateSocioResponse> {
+  const { foto, ...campos } = input;
+
+  if (!foto) {
+    const { data } = await api.post<CreateSocioResponse>("/socios", campos);
+    return data;
+  }
+
+  const formData = new FormData();
+  for (const [clave, valor] of Object.entries(campos)) {
+    if (valor === undefined) continue;
+    formData.append(clave, typeof valor === "object" ? JSON.stringify(valor) : String(valor));
+  }
+  formData.append("foto", foto);
+
+  const { data } = await api.post<CreateSocioResponse>("/socios", formData);
   return data;
 }
 

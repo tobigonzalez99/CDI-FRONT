@@ -1,4 +1,5 @@
 import type { ISODateString, PaginationParams } from "./api";
+import type { MedioPagoManual } from "./pago";
 
 /**
  * HU-09: los tipos de socio son configurables por el administrador,
@@ -87,7 +88,7 @@ export interface GenerarQrResponse {
 }
 
 /** HU-08: payload del formulario de alta. Se envía como multipart/form-data por la foto. */
-export interface CreateSocioInput {
+interface DatosDelAlta {
   nombre: string;
   apellido: string;
   dni: string;
@@ -97,15 +98,37 @@ export interface CreateSocioInput {
   telefono: string;
   fechaNacimiento: ISODateString;
   tipoSocioId: string;
-  vigencia: Vigencia;
   foto: File | null;
 }
+
+/**
+ * Cobro que se registra junto con el alta, para quien paga en el club.
+ * El monto no viaja: lo calcula el backend con la cuota de la categoría.
+ */
+export interface PagoDelAlta {
+  cuentaId: string;
+  medioPago: MedioPagoManual;
+  meses?: number;
+  comprobante?: string;
+  observaciones?: string;
+}
+
+/**
+ * HU-08: alta manual. Lleva la vigencia **o** el cobro, nunca los dos.
+ *
+ * - Con `vigencia`: quien ya venía pagando. No se registra ningún cobro.
+ * - Con `pago`: quien paga ahora en el club. La vigencia la calcula el
+ *   backend desde hoy por los meses pagados, en la misma operación que el
+ *   cobro. Mandar las dos cosas le sumaría al socio meses que no pagó.
+ */
+export type CreateSocioInput = DatosDelAlta &
+  ({ vigencia: Vigencia; pago?: never } | { pago: PagoDelAlta; vigencia?: never });
 
 /**
  * Edición de la ficha desde el panel (`PATCH /socios/:id`). Todos los campos
  * son opcionales y se puede mandar uno solo.
  */
-export type UpdateSocioInput = Partial<Omit<CreateSocioInput, "vigencia">> & {
+export type UpdateSocioInput = Partial<DatosDelAlta> & {
   estado?: EstadoSocio;
   /** Acepta un solo extremo: el que no se manda se conserva como estaba. */
   vigencia?: Partial<Vigencia>;

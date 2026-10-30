@@ -47,7 +47,7 @@ CDI/
 | Carnet QR | `socios.codigoQr` (aleatorio, único, nulo hasta generarlo) y `carnetUrl` (`SITIO_URL/carnet/<codigo>`), que arma el backend. El escaneo es público |
 | Estado cuota | `AL_DIA` \| `PENDIENTE` — **calculado** por el backend comparando la vigencia con la fecha actual en `America/Argentina/Buenos_Aires`. No se persiste. |
 | Tipos de socio | Entidad configurable (`TipoSocio`), no enum. El alta de socio recibe `tipoSocioId`. |
-| Alta de socio | `multipart/form-data` (campo archivo `foto`, vigencia como `vigencia[desde]`/`vigencia[hasta]`). Respuesta `{ socio, passwordInicial }` (la clave se muestra una única vez). |
+| Alta de socio | JSON o `multipart/form-data` (archivo `foto` opcional; `vigencia` y `pago`, si van, serializados como JSON). Lleva `vigencia` **o** `pago`, nunca los dos. Respuesta `{ socio, passwordInicial }` (la clave se muestra una única vez). |
 | Paginación | Query `page`, `pageSize` (máx. 100). Respuesta `{ data, total, page, pageSize, totalPages }`. |
 | Errores | `{ status, code, message, fieldErrors? }` — `fieldErrors: Record<campo, string[]>` (claves con notación de puntos: `vigencia.hasta`) para mapear a React Hook Form. **Todas** las respuestas de error usan esta forma. |
 
@@ -68,7 +68,7 @@ se emite un token nuevo, así que conviene refrescar la sesión con la respuesta
 
 | Método | Ruta | Acceso | Notas |
 |---|---|---|---|
-| POST | `/socios` | ADMIN | HU-08. JSON o `multipart/form-data`. Devuelve `{ socio, passwordInicial }` |
+| POST | `/socios` | ADMIN | HU-08. JSON o `multipart/form-data`. Con `vigencia` (ya venía pagando) **o** con `pago` (paga ahora en el club). Devuelve `{ socio, passwordInicial }` |
 | GET | `/socios` | ADMIN | Paginado: `page`, `pageSize`, `search`, `estado`, `estadoCuota`, `tipoSocioId`, `sortBy`, `sortOrder` |
 | GET | `/socios/:id` | ADMIN | |
 | PATCH | `/socios/:id` | ADMIN | HU-08/HU-09. Todo opcional y vale mandar un solo campo; `vigencia` acepta un solo extremo (el otro se conserva). Una foto nueva reemplaza la anterior |
@@ -80,6 +80,25 @@ se emite un token nuevo, así que conviene refrescar la sesión con la respuesta
 | PATCH | `/perfil/me` | SOCIO | Edita **solo** teléfono, domicilio, localidad y foto |
 | GET · POST | `/tipos-socio` | ADMIN | HU-09. `?soloActivos=true` para el selector del alta |
 | GET · PATCH | `/tipos-socio/:id` | ADMIN | Desactivar saca el tipo de las altas nuevas sin tocar a sus socios |
+
+**Alta manual: dos casos.** Lleva una de las dos cosas, nunca ambas:
+
+- **`vigencia`**: para cargar a alguien que ya venía pagando, como los socios actuales
+  del club. No registra ningún cobro.
+- **`pago`**: `{ cuentaId, medioPago, meses?, comprobante?, observaciones? }`, para quien
+  paga en el club al darse de alta. El socio y el cobro se crean **en la misma
+  transacción**. La vigencia arranca hoy y dura los meses pagados (1 por defecto, hasta
+  24). El **monto lo calcula el backend**: la cuota de la categoría por los meses. El
+  `medioPago` es uno de los manuales; `MERCADO_PAGO` se rechaza.
+
+Se hace en una sola operación porque por separado sale mal de las dos formas. Si se da
+el alta con un mes de vigencia y después se registra el cobro, el período del cobro
+arranca al día siguiente del vencimiento y el socio queda con un mes de más. Si se da
+el alta sin registrar el cobro, la plata no figura en Cobranzas.
+
+Sin ninguna de las dos responde `fieldErrors.vigencia`; con las dos, también. Una
+categoría sin cuota no se puede cobrar (`fieldErrors["pago.meses"]`). La **foto es
+opcional**: si no la trae, el socio la sube después desde su perfil.
 
 **Editar un socio:** si no cambia la foto, mandar `application/json` — es mucho más
 simple que armar un multipart. Todos los campos son opcionales y se puede enviar uno

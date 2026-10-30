@@ -9,6 +9,7 @@ import {
 
 import {
   actualizarSocio,
+  crearSocio,
   generarCodigosDeCarnet,
   listarSocios,
   listarTiposSocio,
@@ -79,6 +80,18 @@ export function useReactivarSocio() {
       void queryClient.invalidateQueries({
         queryKey: [...SOCIOS_QUERY_KEY, "listado"],
       });
+    },
+  });
+}
+
+/** Alta manual: el socio nuevo tiene que aparecer en el padrón. */
+export function useCrearSocio() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: crearSocio,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: SOCIOS_QUERY_KEY });
     },
   });
 }
