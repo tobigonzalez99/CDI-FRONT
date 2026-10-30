@@ -353,16 +353,17 @@ invierte: el contenido pasa a vivir en la base y `seed:contenido` deja de usarse
 La edición desde el panel se mantiene funcionando: es el camino previsto, solo que
 todavía no se usa.
 
-### Avisos por correo de la cuota (backend implementado)
+### Correos automáticos: avisos de cuota y cumpleaños (backend implementado)
 
-Al socio le llega un correo cuando su cuota **está por vencer** y otro cuando **venció**.
-No hay endpoints: lo dispara una tarea programada dentro del backend, una vez por día
-(`AVISOS_CUOTA_CRON`, por defecto `0 9 * * *` en `APP_TIMEZONE`). Para mandarlos en el
-momento: `npm run avisos:cuotas`. Se puede ejecutar las veces que sea: lo ya enviado
-no se repite.
+Al socio le llega un correo cuando su cuota **está por vencer**, otro cuando **venció**,
+y el **saludo del club el día de su cumpleaños**. No hay endpoints: lo dispara una tarea
+programada dentro del backend, una vez por día (`AVISOS_CRON`, por defecto `0 9 * * *`
+en `APP_TIMEZONE`). Para mandarlos en el momento: `npm run avisos:enviar`. Se puede
+ejecutar las veces que sea: lo ya enviado no se repite.
 
-| Aviso | Cuándo |
+| Correo | Cuándo |
 |---|---|
+| Cumpleaños | El día que coincide con `fechaNacimiento`. Los nacidos un 29/2 lo reciben el 28/2 en los años no bisiestos |
 | Por vencer | **5 días antes** del vencimiento si el número de socio es **par**, **4 días antes** si es **impar** |
 | Vencida | Desde el día siguiente al vencimiento, y solo durante 7 días |
 
@@ -372,21 +373,30 @@ socios, todos quedan con el mismo vencimiento, y el aviso de todos caería el mi
 día. Partidos por número de socio, el envío se reparte en dos días. El número de socio
 no cambia, así que cada socio recibe el aviso siempre con la misma anticipación.
 
-- **Tope diario** (`AVISOS_CUOTA_LIMITE_DIARIO`, 250 por defecto). Es la red de seguridad
-  si ni así alcanza: lo que no entra sale al día siguiente, primero los vencimientos
-  más cercanos. Dejarlo por debajo del límite del plan del proveedor, para que quede
+- **Tope diario** (`AVISOS_LIMITE_DIARIO`, 250 por defecto, compartido por los tres
+  correos). Es la red de seguridad si ni así alcanza: lo que no entra sale al día
+  siguiente. El orden es **cumpleaños, por vencer** (el vencimiento más cercano
+  primero) **y vencidas**. El cumpleaños va primero porque es el único que no puede
+  esperar: un saludo al día siguiente ya no es un saludo, así que no se posterga. Dejarlo por debajo del límite del plan del proveedor, para que quede
   lugar para los otros correos (alta, recuperación de clave).
 - **Un aviso por vencimiento, no por socio** (`avisos_enviados`). Si paga, la vigencia
-  se corre y el vencimiento nuevo tiene su propio aviso.
+  se corre y el vencimiento nuevo tiene su propio aviso. El cumpleaños se asienta con
+  la fecha del saludo, así que vuelve a salir el año siguiente.
 - **Si un día no corre** (servidor caído, tope alcanzado), el aviso "por vencer" sale
   al día siguiente: le corresponde desde su día de anticipación hasta el vencimiento.
 - **La ventana de 7 días de "vencida" es a propósito**: al poner el sistema en marcha
   no les llega un correo a socios vencidos hace meses.
-- Solo socios en `ALTA` y sin baja lógica.
+- Solo socios en `ALTA` y sin baja lógica. El saludo de cumpleaños les llega a todos
+  ellos, **tengan o no la cuota al día**: es un saludo, no un aviso.
 - Si el servidor de correo rechaza 3 envíos seguidos, corta la tanda: lo más probable
   es que esté caído, y lo pendiente sale en la próxima ejecución.
 
-**El texto no inventa datos del club.** Dice la fecha, la categoría y el importe
+**El saludo de cumpleaños** (pedido del cliente, 2026-10-30) es cálido y en nombre de
+"la familia rojinegra" del club. No menciona la cuota ni lleva botón al sitio, y no usa
+adjetivos con género ("querido", "rodeado"): el sistema no sabe cómo se nombra cada
+socio. El texto está en `correoCumpleanios`.
+
+**El texto de los avisos de cuota no inventa datos del club.** Dice la fecha, la categoría y el importe
 configurado. Para el pago remite a "la administración del club" y enlaza a
 `SITIO_URL/perfil`. Cuando el club defina medios de pago o contacto, se suman ahí
 (`src/modules/avisos/domain/plantillas.ts`).
@@ -397,9 +407,9 @@ aviso de prueba le llega a una persona real. En producción solo cambian las var
 `SMTP_*` y `MAIL_FROM` por las del proveedor (Brevo, Resend…), y conviene un dominio
 propio del club para que los correos no caigan en spam.
 
-> ⚠️ **Simular fechas deja registros.** `npm run avisos:cuotas -- 2026-11-24` (solo fuera
+> ⚠️ **Simular fechas deja registros.** `npm run avisos:enviar -- 2026-11-24` (solo fuera
 > de producción) asienta los avisos con esa fecha de envío, y eso bloquea los avisos
-> reales de esos vencimientos. Después de probar, vaciar la tabla: `DELETE FROM avisos_enviados;`.
+> reales de esos vencimientos y los saludos de ese día. Después de probar, vaciar la tabla: `DELETE FROM avisos_enviados;`.
 
 **WhatsApp quedó descartado por ahora** (decisión del 2026-10-30). Los avisos de alta y
 la recuperación de contraseña por correo van en una tarea aparte: comparten el enlace
@@ -449,10 +459,10 @@ Credenciales de desarrollo en `.env` (`SEED_ADMIN_*`): DNI `20000001`, clave `Cd
 - `disciplinas`: actividades del menú (`slug` único, `orden`, `activa`). Lista plana, sin jerarquía.
 - `solicitudes_socio`: postulaciones pendientes (datos del formulario + `foto_path` + `tipo_socio_id`). `dni` y `email` únicos. Se borra al aprobar o rechazar.
 - `solicitudes_baja`: pedidos de baja pendientes (`socio_id` único + `motivo` opcional). Se borra al aprobar o rechazar; aprobar solo cambia `socios.estado` a `BAJA`.
-- `avisos_enviados`: cada aviso de cuota mandado (`socio_id`, `tipo`, `vencimiento`, `fecha_envio`, `email`). Único por socio + tipo + vencimiento: es lo que impide repetirlo.
+- `avisos_enviados`: cada correo automático mandado (`socio_id`, `tipo` = `CUOTA_POR_VENCER` | `CUOTA_VENCIDA` | `CUMPLEANIOS`, `fecha_referencia`, `fecha_envio`, `email`). `fecha_referencia` es el vencimiento en los avisos de cuota y el día del saludo en el de cumpleaños. Único por socio + tipo + fecha: es lo que impide repetirlo.
 - `socios.foto_path` guarda la ruta relativa del archivo; la URL pública se arma al responder.
 
 ## Comandos rápidos
 
-Backend (`cdi-backend/`): `npm run start:dev`, `npm test`, `npm run lint`, `npm run migration:generate -- src/database/migrations/<Nombre>`, `npm run migration:run`, `npm run seed`, `npm run seed:dev` (datos de prueba para el frontend; credenciales en el README del backend), `npm run avisos:cuotas` (manda ya los avisos de cuota del día; en desarrollo acepta una fecha para simular).
+Backend (`cdi-backend/`): `npm run start:dev`, `npm test`, `npm run lint`, `npm run migration:generate -- src/database/migrations/<Nombre>`, `npm run migration:run`, `npm run seed`, `npm run seed:dev` (datos de prueba para el frontend; credenciales en el README del backend), `npm run avisos:enviar` (manda ya los avisos de cuota y saludos de cumpleaños del día; en desarrollo acepta una fecha para simular).
 Frontend (`cdi-frontend/`): `npm run dev`, `npm run lint`, `npm run build`.
