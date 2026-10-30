@@ -3,12 +3,12 @@ import type { ISODateString, PaginationParams } from "./api";
 export const TIPOS_CUENTA = ["EFECTIVO", "BANCARIA", "BILLETERA_VIRTUAL"] as const;
 export type TipoCuenta = (typeof TIPOS_CUENTA)[number];
 
-export const USOS_SISTEMA_CUENTA = ["EFECTIVO", "MERCADO_PAGO"] as const;
+export const USOS_SISTEMA_CUENTA = ["EFECTIVO", "BANCO"] as const;
 export type UsoSistemaCuenta = (typeof USOS_SISTEMA_CUENTA)[number];
 
 /**
- * Dónde queda el dinero cobrado. El club usa solo dos: la de efectivo y la
- * de Mercado Pago, marcadas con `usoSistema`.
+ * Dónde queda el dinero cobrado. Son dos y fijas —la caja de efectivo y la
+ * del banco—, marcadas con `usoSistema`. No se crean cuentas nuevas.
  */
 export interface Cuenta {
   id: string;
@@ -21,14 +21,11 @@ export interface Cuenta {
   usoSistema: UsoSistemaCuenta | null;
 }
 
-export interface CreateCuentaInput {
-  nombre: string;
-  tipo: TipoCuenta;
+/** Lo único editable de una cuenta (`PATCH /cuentas/:id`). */
+export interface UpdateCuentaInput {
+  nombre?: string;
   identificador?: string | null;
-  activa?: boolean;
 }
-
-export type UpdateCuentaInput = Partial<CreateCuentaInput>;
 
 /**
  * Medios con los que el club registra un cobro a mano desde el panel.
@@ -54,12 +51,16 @@ export const ETIQUETAS_MEDIO_PAGO: Record<MedioPago, string> = {
  * A qué cuenta va cada medio. El backend aplica la misma regla y rechaza un
  * cobro que no la cumpla; acá sirve para no pedirle al admin un dato que se
  * deduce solo: el efectivo entra en la caja, y una transferencia o un pago
- * online entran en la cuenta de Mercado Pago del club.
+ * online terminan en el banco.
+ *
+ * Mercado Pago es un medio, no una cuenta: el cobro online se acredita en
+ * Mercado Pago y el club lo pasa al banco. El sistema registra dónde termina
+ * la plata.
  */
 export const CUENTA_DE_CADA_MEDIO: Record<MedioPago, UsoSistemaCuenta> = {
   EFECTIVO: "EFECTIVO",
-  TRANSFERENCIA: "MERCADO_PAGO",
-  MERCADO_PAGO: "MERCADO_PAGO",
+  TRANSFERENCIA: "BANCO",
+  MERCADO_PAGO: "BANCO",
 };
 
 /** La cuenta que corresponde a un medio, entre las que devuelve `/cuentas`. */
