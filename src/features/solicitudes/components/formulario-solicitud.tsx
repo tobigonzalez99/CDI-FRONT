@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CircleCheck, Clock, LoaderCircle, X } from "lucide-react";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Cargando, ErrorConsulta } from "@/components/shared/estado-consulta";
+import { normalizarNombre } from "@/features/socios/data/categorias";
 import {
   useEnviarSolicitud,
   useTiposDisponibles,
@@ -62,7 +63,15 @@ function Campo({
   );
 }
 
-export function FormularioSolicitud() {
+interface FormularioSolicitudProps {
+  /**
+   * Categoría elegida desde su tarjeta, por nombre. `vez` cambia en cada
+   * elección, así volver a elegir la misma también se aplica.
+   */
+  tipoElegido?: { nombre: string; vez: number } | null;
+}
+
+export function FormularioSolicitud({ tipoElegido }: FormularioSolicitudProps = {}) {
   const [foto, setFoto] = useState<File | null>(null);
   const [errorFoto, setErrorFoto] = useState<string | null>(null);
   const [claveInputFoto, setClaveInputFoto] = useState(0);
@@ -91,6 +100,7 @@ export function FormularioSolicitud() {
     register,
     handleSubmit,
     setError,
+    setValue,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<SolicitudFormValues>({
@@ -108,6 +118,15 @@ export function FormularioSolicitud() {
       comentario: "",
     },
   });
+
+  // La categoría elegida en su tarjeta se aplica en cuanto están las opciones.
+  useEffect(() => {
+    if (!tipoElegido || !tipos.data) return;
+    const tipo = tipos.data.find(
+      (candidato) => normalizarNombre(candidato.nombre) === normalizarNombre(tipoElegido.nombre),
+    );
+    if (tipo) setValue("tipoSocioId", tipo.id, { shouldValidate: true });
+  }, [tipoElegido, tipos.data, setValue]);
 
   function alElegirFoto(evento: React.ChangeEvent<HTMLInputElement>) {
     const archivo = evento.target.files?.[0];
