@@ -40,7 +40,7 @@ export const CATEGORIAS_SOCIO: CategoriaSocio[] = [
     descripcion:
       "Es el socio pleno de la institución: paga la cuota completa y accede a todos los beneficios.",
     beneficios: [
-      "Pagás la mitad de la entrada en los partidos de local de Primera y Tercera: masculino, femenino e inferiores.",
+      "Pagás la mitad en todas las actividades que organiza el club.",
       "Descuento en el alquiler de los salones del club.",
       "Carnet digital con QR: lo mostrás en la entrada y se ve al instante que estás al día.",
     ],
@@ -66,7 +66,7 @@ export const CATEGORIAS_SOCIO: CategoriaSocio[] = [
     paraQuien: "Para deportistas menores de 18 años.",
     descripcion:
       "Son los chicos y chicas de las distintas disciplinas que entrenan en las instalaciones del club y lo representan en cada competencia.",
-    beneficios: [],
+    beneficios: ["Entrada gratis a todas las actividades que organiza el club."],
   },
   {
     id: "campeon",
@@ -75,7 +75,8 @@ export const CATEGORIAS_SOCIO: CategoriaSocio[] = [
     descripcion:
       "Una categoría de pertenencia para los jugadores que salieron campeones de la Liga Tresarroyense con el club.",
     beneficios: [
-      "Entrada gratis a los partidos de local de Primera y Tercera: masculino, femenino e inferiores.",
+      "Entrada gratis a todas las actividades que organiza el club.",
+      "Descuento en el alquiler de los salones del club.",
       "El reconocimiento del club a quienes le dieron un campeonato.",
     ],
   },
