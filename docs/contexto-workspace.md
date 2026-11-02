@@ -416,8 +416,12 @@ importe no coincide, el cobro queda `EN_REVISION` y no se registra nada.
   también consulta: el comprobante `MP-<id>` asegura que se registre una sola vez, y el
   cobro se bloquea mientras se procesa.
 - **El estado no depende del webhook.** Si el cobro figura `PENDIENTE`, la consulta de
-  estado le pregunta a Mercado Pago antes de responder. En desarrollo, sin túnel,
-  todo funciona igual.
+  estado le pregunta a Mercado Pago antes de responder. Además, **cada minuto** un control
+  revisa los cobros pendientes de las últimas 24 horas: un pago aprobado queda
+  registrado aunque el socio no vuelva al sitio y el aviso no llegue. En desarrollo,
+  sin túnel, todo funciona igual.
+- Un cobro vencido se da por rechazado **solo si Mercado Pago confirmó** que no tiene
+  pago: si no respondió, puede haber uno aprobado que todavía no vimos.
 - **Apretar "Pagar" dos veces no crea dos cobros:** si hay uno abierto por los mismos
   meses e importe, se devuelve ese.
 - **Cada cobro se puede pagar 30 minutos.** Uno que vence sin pagarse se informa como
@@ -433,8 +437,9 @@ importe no coincide, el cobro queda `EN_REVISION` y no se registra nada.
 firma `x-signature` de los avisos) y `MP_WEBHOOK_URL` (base pública https para los avisos:
 el túnel en desarrollo, la API en producción). Sin `MP_WEBHOOK_URL` no hay avisos y el
 estado se resuelve al volver. `auto_return` (que Mercado Pago vuelva solo al sitio) se
-pide solo cuando `SITIO_URL` es https: en localhost el socio vuelve con el botón de
-Mercado Pago.
+pide solo cuando `SITIO_URL` es https. **Mercado Pago rechaza `auto_return` hacia
+`localhost`** (`invalid_auto_return`, comprobado el 2026-11-02): en desarrollo el socio vuelve
+con "Volver al sitio", y si no vuelve, el control de cada minuto registra el pago igual.
 
 ### Disciplinas (implementado)
 

@@ -5,7 +5,7 @@ import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CambiarPasswordCard } from "@/features/auth/components/cambiar-password-card";
-import { PagarCuotaCard } from "@/features/mercadopago/components/pagar-cuota-card";
+import { PagarCuota } from "@/features/mercadopago/components/pagar-cuota";
 import { HistorialPagosCard } from "@/features/pagos/components/historial-pagos-card";
 import { CarnetSocioCard } from "@/features/socios/components/carnet-socio";
 import { DatosPersonales } from "@/features/socios/components/datos-personales";
@@ -75,7 +75,10 @@ export function MiPerfil() {
         </Card>
       )}
 
-      <PagarCuotaCard />
+      {/* Del mismo ancho que el carnet, justo debajo: es lo que se viene a hacer acá. */}
+      <div className="mx-auto w-full max-w-xl">
+        <PagarCuota className="w-full" />
+      </div>
 
       <DatosPersonales socio={socio} />
 
