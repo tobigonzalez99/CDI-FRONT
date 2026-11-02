@@ -23,7 +23,10 @@ const RESULTADOS: Record<
 > = {
   AL_DIA: {
     titulo: "AL DÍA",
-    detalle: "Le corresponde el descuento en la entrada.",
+    // Sin prometer descuento: lo que corresponde depende de la categoría (el
+    // Protector, por ejemplo, no tiene). Hasta que el backend informe el
+    // beneficio de cada categoría, quien cobra se guía por la categoría.
+    detalle: "Socio al día. Cobrá según su categoría.",
     clases: "bg-emerald-600 text-white",
     Icono: CircleCheck,
   },
@@ -90,13 +93,15 @@ function Resultado({ carnet }: { carnet: CarnetPublico }) {
           </AvatarFallback>
         </Avatar>
 
-        <div>
+        <div className="flex flex-col items-center gap-2">
           <p className="font-heading text-2xl font-bold">
             {carnet.apellido}, {carnet.nombre}
           </p>
-          <p className="text-muted-foreground">
-            Socio N° {carnet.numeroSocio} · {carnet.tipoSocio}
+          {/* La categoría, en grande: de ella depende qué se le cobra. */}
+          <p className="rounded-full bg-brand-red px-4 py-1.5 font-heading text-lg font-bold tracking-wide text-white uppercase">
+            {carnet.tipoSocio}
           </p>
+          <p className="text-muted-foreground">Socio N° {carnet.numeroSocio}</p>
         </div>
       </section>
 
