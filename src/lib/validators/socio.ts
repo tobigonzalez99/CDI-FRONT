@@ -93,7 +93,11 @@ export type MembresiaFormValues = z.infer<ReturnType<typeof construirMembresiaSc
  * porque al cargar el padrón actual casi nunca se tiene a mano. El socio la
  * sube después desde su perfil.
  */
-export const MODOS_ALTA = ["VENIA_PAGANDO", "PAGA_AHORA"] as const;
+/**
+ * `SIN_CUOTA` no lo elige el admin: lo pone el formulario solo cuando la
+ * categoría elegida no paga cuota, y ahí no hay vigencia ni cobro que cargar.
+ */
+export const MODOS_ALTA = ["VENIA_PAGANDO", "PAGA_AHORA", "SIN_CUOTA"] as const;
 export type ModoAlta = (typeof MODOS_ALTA)[number];
 
 /** Mínimo y máximo de meses en un cobro: el mismo límite que el cobro manual. */

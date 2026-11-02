@@ -21,7 +21,7 @@ import { SocioDetalleDialog } from "@/features/admin/components/socio-detalle-di
 import { useSocios } from "@/features/admin/hooks/use-socios";
 import { useDebounce } from "@/hooks/use-debounce";
 import { EstadoCuotaBadge } from "@/features/socios/components/estado-cuota-badge";
-import { formatearVigencia } from "@/lib/formato";
+import { textoVigencia } from "@/features/socios/lib/cuota";
 import { cn } from "@/lib/utils";
 
 const POR_PAGINA = 20;
@@ -121,7 +121,7 @@ export function PadronSocios() {
                     <TableCell className="tabular-nums">{socio.dni}</TableCell>
                     <TableCell>{socio.tipoSocio.nombre}</TableCell>
                     <TableCell className="whitespace-nowrap tabular-nums">
-                      {formatearVigencia(socio.vigencia.desde, socio.vigencia.hasta)}
+                      {textoVigencia(socio)}
                     </TableCell>
                     <TableCell>
                       <EstadoCuotaBadge estado={socio.estadoCuota} />

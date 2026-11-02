@@ -120,9 +120,15 @@ export interface PagoDelAlta {
  * - Con `pago`: quien paga ahora en el club. La vigencia la calcula el
  *   backend desde hoy por los meses pagados, en la misma operación que el
  *   cobro. Mandar las dos cosas le sumaría al socio meses que no pagó.
+ * - Sin ninguna de las dos: solo en una categoría sin cuota (Juvenil,
+ *   Campeón), que está siempre al día.
  */
 export type CreateSocioInput = DatosDelAlta &
-  ({ vigencia: Vigencia; pago?: never } | { pago: PagoDelAlta; vigencia?: never });
+  (
+    | { vigencia: Vigencia; pago?: never }
+    | { pago: PagoDelAlta; vigencia?: never }
+    | { vigencia?: never; pago?: never }
+  );
 
 /**
  * Edición de la ficha desde el panel (`PATCH /socios/:id`). Todos los campos

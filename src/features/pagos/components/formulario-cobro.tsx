@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { useForm, useWatch, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoaderCircle, Receipt } from "lucide-react";
+import { Info, LoaderCircle, Receipt } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { Cargando, ErrorConsulta } from "@/components/shared/estado-consulta";
 import { SelectorSocio } from "@/features/pagos/components/selector-socio";
 import { useCuentasActivas } from "@/features/pagos/hooks/use-pagos";
 import { useRegistrarPago } from "@/features/pagos/hooks/use-pago-mutations";
+import { pagaCuota } from "@/features/socios/lib/cuota";
 import { aplicarFieldErrors, mensajeDeError } from "@/lib/api/errors";
 import { formatearMonto, formatearVigencia } from "@/lib/formato";
 import { cobroSchema, type CobroFormValues } from "@/lib/validators/pago";
@@ -77,6 +78,8 @@ export function FormularioCobro() {
     }
   }
 
+  const sinCuota = socio !== null && !pagaCuota(socio.tipoSocio);
+
   const medio = useWatch({ control, name: "medioPago" });
   const cuenta = cuentas.data ? cuentaParaMedio(cuentas.data, medio) : undefined;
 
@@ -137,6 +140,15 @@ export function FormularioCobro() {
             onSeleccionar={elegirSocio}
             error={errors.socioId?.message}
           />
+
+          {/* Juvenil y Campeón no pagan cuota: el backend rechaza el cobro. */}
+          {sinCuota && (
+            <p className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
+              {socio?.nombre} es {socio?.tipoSocio.nombre}: esa categoría no paga cuota, así
+              que no hay nada que cobrarle.
+            </p>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
@@ -254,7 +266,7 @@ export function FormularioCobro() {
             )}
           </div>
 
-          <Button type="submit" size="lg" className="h-11" disabled={isSubmitting}>
+          <Button type="submit" size="lg" className="h-11" disabled={isSubmitting || sinCuota}>
             {isSubmitting ? (
               <LoaderCircle className="size-4 animate-spin" aria-hidden />
             ) : (

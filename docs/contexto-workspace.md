@@ -45,7 +45,7 @@ CDI/
 | Socio | `nombre` y `apellido` separados; `dni` string (7–8 dígitos); fechas `YYYY-MM-DD`; `vigencia: { desde, hasta }` inclusive. |
 | Estado socio | `ALTA` \| `BAJA` (administrativo, persistido). Además soft delete (`deletedAt`). |
 | Carnet QR | `socios.codigoQr` (aleatorio, único, nulo hasta generarlo) y `carnetUrl` (`SITIO_URL/carnet/<codigo>`), que arma el backend. El escaneo es público |
-| Estado cuota | `AL_DIA` \| `PENDIENTE` — **calculado** por el backend comparando la vigencia con la fecha actual en `America/Argentina/Buenos_Aires`. No se persiste. |
+| Estado cuota | `AL_DIA` \| `PENDIENTE` — **calculado** por el backend comparando la vigencia con la fecha actual en `America/Argentina/Buenos_Aires`. No se persiste. Una **categoría sin cuota** (`montoCuota: null`, como Juvenil y Campeón) está **siempre `AL_DIA`**: su vigencia no se mira. |
 | Tipos de socio | Entidad configurable (`TipoSocio`), no enum. El alta de socio recibe `tipoSocioId`. |
 | Alta de socio | JSON o `multipart/form-data` (archivo `foto` opcional; `vigencia` y `pago`, si van, serializados como JSON). Lleva `vigencia` **o** `pago`, nunca los dos. Respuesta `{ socio, passwordInicial, correoBienvenidaEnviado }` (la clave se muestra una única vez). |
 | Paginación | Query `page`, `pageSize` (máx. 100). Respuesta `{ data, total, page, pageSize, totalPages }`. |
@@ -133,8 +133,11 @@ el alta con un mes de vigencia y después se registra el cobro, el período del 
 arranca al día siguiente del vencimiento y el socio queda con un mes de más. Si se da
 el alta sin registrar el cobro, la plata no figura en Cobranzas.
 
-Sin ninguna de las dos responde `fieldErrors.vigencia`; con las dos, también. Una
-categoría sin cuota no se puede cobrar (`fieldErrors["pago.meses"]`). La **foto es
+Sin ninguna de las dos responde `fieldErrors.vigencia`; con las dos, también. **Salvo en
+una categoría sin cuota** (Juvenil, Campeón): ahí no se manda ni `vigencia` ni `pago`.
+El socio está siempre al día, y el backend guarda como vigencia la fecha de hoy solo
+porque la columna la exige. Una categoría sin cuota no se puede cobrar
+(`fieldErrors["pago.meses"]`). La **foto es
 opcional**: si no la trae, el socio la sube después desde su perfil.
 
 **Editar un socio:** si no cambia la foto, mandar `application/json` — es mucho más
@@ -199,6 +202,9 @@ lados no puedan discrepar en el formato.
 Si fuera derivado, cualquiera podría fabricarse el carnet de un socio al día. Es único
 (`socios.codigo_qr`) y **nulo hasta que se genera**.
 
+**El botón alcanza a todos los socios de alta, de cualquier categoría** (Juvenil y
+Campeón incluidos).
+
 **Una vez generado no cambia, y el botón saltea a los que ya tienen.** No es una
 optimización: el carnet ya está repartido por WhatsApp y guardado en el teléfono del
 socio. Regenerarlo lo dejaría sin servir sin que nadie se entere hasta la puerta de la
@@ -249,7 +255,7 @@ rechazado o vencido, o un rechazo del admin, borra los datos y la foto.
 
 | Método | Ruta | Acceso | Notas |
 |---|---|---|---|
-| GET | `/tipos-socio/disponibles` | **público** | Categorías activas con su `montoCuota`, para el selector del formulario |
+| GET | `/tipos-socio/disponibles` | **público** | Categorías activas **que pagan cuota**, con su `montoCuota`, para el selector del formulario. Las sin cuota (Juvenil, Campeón) no aparecen: las asigna el club desde el panel |
 | POST | `/solicitudes` | **público** | `multipart/form-data` → **`201 { id, initPoint }`**: el front hace `window.location = initPoint`. Máx. 3 envíos por minuto y por IP |
 | GET | `/solicitudes` | ADMIN | Paginado, más antiguas primero. Cada una trae `estado`, `venceEn` y `motivoRevision` |
 | GET | `/solicitudes/pendientes/total` | ADMIN | `{ pendientes: n }`: solo las que esperan algo del admin (en revisión, o anteriores al pago online). Las que se están pagando no cuentan |
@@ -383,6 +389,8 @@ socio **nunca se acorta**: un pago viejo cargado tarde no empeora su situación.
   cuál corresponde llevaría a errores silenciosos. La respuesta avisa con
   `requiereRevisarVigencia` y el admin la ajusta desde la ficha del socio.
 - No se aceptan cobros con fecha futura ni montos menores o iguales a cero.
+- **A un socio de una categoría sin cuota no se le registran cobros** (`VALIDATION_ERROR` en
+  `socioId`): no tiene nada que pagar.
 
 **Dos cuentas y tres medios** (decisión del cliente, 2026-10-30). El club recibe plata
 solo en dos lugares, que son fijos (no hay alta de cuentas), y cada medio de pago va a
@@ -575,8 +583,9 @@ no cambia, así que cada socio recibe el aviso siempre con la misma anticipació
   al día siguiente: le corresponde desde su día de anticipación hasta el vencimiento.
 - **La ventana de 7 días de "vencida" es a propósito**: al poner el sistema en marcha
   no les llega un correo a socios vencidos hace meses.
-- Solo socios en `ALTA` y sin baja lógica. El saludo de cumpleaños les llega a todos
-  ellos, **tengan o no la cuota al día**: es un saludo, no un aviso.
+- Solo socios en `ALTA` y sin baja lógica. **Los avisos de cuota no les salen a las
+  categorías sin cuota** (Juvenil, Campeón): no se les vence nada. El saludo de
+  cumpleaños les llega a todos, **tengan o no la cuota al día**: es un saludo, no un aviso.
 - Si el servidor de correo rechaza 3 envíos seguidos, corta la tanda: lo más probable
   es que esté caído, y lo pendiente sale en la próxima ejecución.
 
@@ -630,6 +639,16 @@ Credenciales de desarrollo en `.env` (`SEED_ADMIN_*`): DNI `20000001`, clave `Cd
 |---|---|---|
 | Socio Activo | Socio activo, con beneficios exclusivos. | $8.000 |
 | Socio Protector | Mitad de precio y algunos beneficios. | $4.000 |
+| Socio Juvenil | Deportistas menores de 18 años. Sin cuota, con entrada gratis a todas las actividades del club. | **Sin cuota** |
+| Socio Campeón | Jugadores que salieron campeones con el club. Sin cuota, con entrada gratis a todas las actividades y descuento en el alquiler de salones. | **Sin cuota** |
+
+**Categorías sin cuota** (`montoCuota: null`, definidas por el cliente el 2026-11-02). Sus
+socios están **siempre al día** mientras estén de alta: la vigencia no se mira, no reciben
+avisos de cuota, no se les registran cobros, y la categoría no se ofrece en "Hacete
+socio" porque no hay nada que pagar online. Las asigna el club desde el panel, al dar
+de alta o al editar un socio. Tienen carnet QR como cualquier otro socio, y al escanearlo
+se ve su categoría y que está al día. **La pantalla de escaneo no habla de beneficios
+ni descuentos** (decisión del cliente, 2026-11-02): solo la situación y la categoría.
 
 Montos definidos por el cliente el 2026-10-30. En la semilla, el Protector se calcula
 como la mitad de `CUOTA_BASE`. La semilla no pisa los montos ya guardados: para cambiar

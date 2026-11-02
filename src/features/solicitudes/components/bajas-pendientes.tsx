@@ -15,7 +15,8 @@ import {
   useSolicitudesBaja,
 } from "@/features/solicitudes/hooks/use-bajas";
 import { mensajeDeError } from "@/lib/api/errors";
-import { formatearFecha, formatearFechaCorta, formatearVigencia } from "@/lib/formato";
+import { textoVigencia } from "@/features/socios/lib/cuota";
+import { formatearFecha, formatearFechaCorta } from "@/lib/formato";
 import type { SolicitudBaja } from "@/types/solicitud-baja";
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
@@ -109,7 +110,7 @@ function TarjetaBaja({ solicitud }: { solicitud: SolicitudBaja }) {
           />
           <Dato
             etiqueta="Vigencia"
-            valor={formatearVigencia(socio.vigencia.desde, socio.vigencia.hasta)}
+            valor={textoVigencia(socio)}
           />
         </dl>
 

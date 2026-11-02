@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CambiarPasswordCard } from "@/features/auth/components/cambiar-password-card";
 import { PagarCuota } from "@/features/mercadopago/components/pagar-cuota";
+import { pagaCuota } from "@/features/socios/lib/cuota";
 import { HistorialPagosCard } from "@/features/pagos/components/historial-pagos-card";
 import { CarnetSocioCard } from "@/features/socios/components/carnet-socio";
 import { DatosPersonales } from "@/features/socios/components/datos-personales";
@@ -40,7 +41,8 @@ export function MiPerfil() {
     );
   }
 
-  const cuotaPendiente = socio.estadoCuota === "PENDIENTE";
+  const sinCuota = !pagaCuota(socio.tipoSocio);
+  const cuotaPendiente = !sinCuota && socio.estadoCuota === "PENDIENTE";
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
@@ -75,13 +77,23 @@ export function MiPerfil() {
         </Card>
       )}
 
-      {/* Del mismo ancho que el carnet, justo debajo: es lo que se viene a hacer acá. */}
-      <div className="mx-auto w-full max-w-xl">
-        <PagarCuota className="w-full" />
-      </div>
+      {/*
+        Del mismo ancho que el carnet, justo debajo: es lo que se viene a hacer
+        acá. Juvenil y Campeón no pagan cuota, así que no hay nada que pagar.
+      */}
+      {sinCuota ? (
+        <p className="mx-auto w-full max-w-xl rounded-xl bg-muted/50 p-4 text-center text-sm text-muted-foreground">
+          Tu categoría no paga cuota: estás siempre al día.
+        </p>
+      ) : (
+        <div className="mx-auto w-full max-w-xl">
+          <PagarCuota className="w-full" />
+        </div>
+      )}
 
       <DatosPersonales socio={socio} />
 
+      {/* Siempre: quien antes pagaba cuota puede tener cobros viejos. */}
       <HistorialPagosCard />
 
       <CambiarPasswordCard />

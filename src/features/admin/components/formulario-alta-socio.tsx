@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { useForm, useWatch, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Cargando, ErrorConsulta } from "@/components/shared/estado-consulta";
 import { useCrearSocio, useTiposSocio } from "@/features/admin/hooks/use-socios";
 import { useCuentasActivas } from "@/features/pagos/hooks/use-pagos";
+import { AVISO_SIN_CUOTA, pagaCuota } from "@/features/socios/lib/cuota";
 import { PasswordInicialDialog } from "@/features/solicitudes/components/password-inicial-dialog";
 import { aplicarFieldErrors, mensajeDeError } from "@/lib/api/errors";
 import { formatearMonto } from "@/lib/formato";
@@ -188,6 +189,7 @@ export function FormularioAltaSocio() {
     register,
     handleSubmit,
     setError,
+    setValue,
     reset,
     control,
     formState: { errors, isSubmitting },
@@ -218,6 +220,17 @@ export function FormularioAltaSocio() {
    */
   const total =
     categoria?.montoCuota != null && mesesValidos ? categoria.montoCuota * cantidadMeses : null;
+
+  /*
+    Una categoría sin cuota no tiene "cómo se suma": no hay vigencia ni cobro
+    que cargar. El caso se pone solo al elegirla, y se vacía al cambiar a una
+    con cuota para que el admin elija de nuevo.
+  */
+  useEffect(() => {
+    const sinCuota = categoria !== undefined && !pagaCuota(categoria);
+    if (sinCuota && modo !== "SIN_CUOTA") setValue("modo", "SIN_CUOTA");
+    if (!sinCuota && modo === "SIN_CUOTA") setValue("modo", "");
+  }, [categoria, modo, setValue]);
 
   function alElegirFoto(evento: React.ChangeEvent<HTMLInputElement>) {
     const archivo = evento.target.files?.[0];
@@ -253,20 +266,23 @@ export function FormularioAltaSocio() {
     }
 
     // Solo viaja el bloque del caso elegido: mandar las dos cosas le sumaría
-    // al socio meses que no pagó, y el backend lo rechaza.
+    // al socio meses que no pagó, y el backend lo rechaza. Sin cuota no va
+    // ninguna de las dos.
     const input: CreateSocioInput =
-      modoElegido === "PAGA_AHORA" && cuentaDelCobro
-        ? {
-            ...datos,
-            foto,
-            pago: {
-              cuentaId: cuentaDelCobro.id,
-              medioPago: medioElegido,
-              meses: Number(pago.meses),
-              ...(pago.comprobante.trim() && { comprobante: pago.comprobante.trim() }),
-            },
-          }
-        : { ...datos, foto, vigencia };
+      modoElegido === "SIN_CUOTA"
+        ? { ...datos, foto }
+        : modoElegido === "PAGA_AHORA" && cuentaDelCobro
+          ? {
+              ...datos,
+              foto,
+              pago: {
+                cuentaId: cuentaDelCobro.id,
+                medioPago: medioElegido,
+                meses: Number(pago.meses),
+                ...(pago.comprobante.trim() && { comprobante: pago.comprobante.trim() }),
+              },
+            }
+          : { ...datos, foto, vigencia };
 
     try {
       const respuesta = await crear(input);
@@ -456,11 +472,18 @@ export function FormularioAltaSocio() {
             </select>
           </Campo>
 
+          {modo === "SIN_CUOTA" && (
+            <p className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">
+              {AVISO_SIN_CUOTA}
+            </p>
+          )}
+
           <div
             role="radiogroup"
             aria-labelledby={ids.modo}
             aria-describedby={errors.modo ? `${ids.modo}-error` : undefined}
             className="grid gap-2"
+            hidden={modo === "SIN_CUOTA"}
           >
             <p id={ids.modo} className="text-sm font-medium">
               ¿Cómo se suma?

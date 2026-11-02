@@ -1,7 +1,13 @@
 "use client";
 
 import { useId, useState } from "react";
-import { useForm, type FieldValues, type Path, type UseFormSetError } from "react-hook-form";
+import {
+  useForm,
+  useWatch,
+  type FieldValues,
+  type Path,
+  type UseFormSetError,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle, TriangleAlert, UserCheck, UserMinus } from "lucide-react";
 import { toast } from "sonner";
@@ -17,7 +23,8 @@ import {
   useTiposSocio,
 } from "@/features/admin/hooks/use-socios";
 import { aplicarFieldErrors, esApiError, mensajeDeError } from "@/lib/api/errors";
-import { formatearFecha, formatearMonto, formatearVigencia } from "@/lib/formato";
+import { AVISO_SIN_CUOTA, pagaCuota, textoVigencia } from "@/features/socios/lib/cuota";
+import { formatearFecha, formatearMonto } from "@/lib/formato";
 import {
   construirMembresiaSchema,
   contactoSchema,
@@ -365,11 +372,17 @@ export function BloqueMembresia({ socio }: { socio: Socio }) {
     handleSubmit,
     setError,
     reset,
+    control,
     formState: { errors, dirtyFields },
   } = useForm<MembresiaFormValues>({
     resolver: zodResolver(construirMembresiaSchema(socio.vigencia.desde)),
     defaultValues: valoresIniciales,
   });
+
+  // La vigencia solo tiene sentido si la categoría elegida paga cuota.
+  const tipoElegidoId = useWatch({ control, name: "tipoSocioId" });
+  const tipoElegido = tipos?.find((tipo) => tipo.id === tipoElegidoId) ?? socio.tipoSocio;
+  const elegidaPagaCuota = pagaCuota(tipoElegido);
 
   const { guardar, guardando } = useGuardarBloque(socio.id, setError, [
     ...CAMPOS_MEMBRESIA,
@@ -393,7 +406,7 @@ export function BloqueMembresia({ socio }: { socio: Socio }) {
         guardar(
           {
             ...(dirtyFields.tipoSocioId ? { tipoSocioId: valores.tipoSocioId } : {}),
-            ...(dirtyFields.vigencia?.hasta
+            ...(dirtyFields.vigencia?.hasta && elegidaPagaCuota
               ? { vigencia: { hasta: valores.vigencia.hasta } }
               : {}),
           },
@@ -413,10 +426,7 @@ export function BloqueMembresia({ socio }: { socio: Socio }) {
                 : `${socio.tipoSocio.nombre} · ${formatearMonto(cuota)}`
             }
           />
-          <Dato
-            etiqueta="Vigencia"
-            valor={formatearVigencia(socio.vigencia.desde, socio.vigencia.hasta)}
-          />
+          <Dato etiqueta="Vigencia" valor={textoVigencia(socio)} />
         </dl>
       }
       edicion={
@@ -448,34 +458,44 @@ export function BloqueMembresia({ socio }: { socio: Socio }) {
             </select>
           </Campo>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-0.5">
-              <Label className="text-sm">Al día desde</Label>
-              <p className="pt-2 text-sm text-muted-foreground">
-                {formatearFecha(socio.vigencia.desde)}
-              </p>
-            </div>
+          {elegidaPagaCuota ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-0.5">
+                <Label className="text-sm">Al día desde</Label>
+                <p className="pt-2 text-sm text-muted-foreground">
+                  {formatearFecha(socio.vigencia.desde)}
+                </p>
+              </div>
 
-            <Campo
-              id={vencimientoId}
-              etiqueta="Al día hasta"
-              error={errors.vigencia?.hasta?.message}
-              ayuda="Si anulaste un cobro, corregí acá hasta cuándo quedó cubierto."
-            >
-              <Input
+              <Campo
                 id={vencimientoId}
-                type="date"
-                min={socio.vigencia.desde}
-                aria-invalid={Boolean(errors.vigencia?.hasta)}
-                aria-describedby={descripcionDe(
-                  vencimientoId,
-                  Boolean(errors.vigencia?.hasta),
-                  true,
-                )}
-                {...register("vigencia.hasta")}
-              />
-            </Campo>
-          </div>
+                etiqueta="Al día hasta"
+                error={errors.vigencia?.hasta?.message}
+                ayuda={
+                  pagaCuota(socio.tipoSocio)
+                    ? "Si anulaste un cobro, corregí acá hasta cuándo quedó cubierto."
+                    : "Hasta ahora no pagaba cuota: indicá hasta cuándo tiene la cuota paga."
+                }
+              >
+                <Input
+                  id={vencimientoId}
+                  type="date"
+                  min={socio.vigencia.desde}
+                  aria-invalid={Boolean(errors.vigencia?.hasta)}
+                  aria-describedby={descripcionDe(
+                    vencimientoId,
+                    Boolean(errors.vigencia?.hasta),
+                    true,
+                  )}
+                  {...register("vigencia.hasta")}
+                />
+              </Campo>
+            </div>
+          ) : (
+            <p className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">
+              {AVISO_SIN_CUOTA}
+            </p>
+          )}
         </>
       }
     />

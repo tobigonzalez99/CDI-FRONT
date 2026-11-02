@@ -21,7 +21,8 @@ import {
   LEYENDA_CARNET,
   ROJO_CARNET,
 } from "@/features/socios/lib/carnet";
-import { diasHasta, formatearVigencia } from "@/lib/formato";
+import { pagaCuota, textoVigencia } from "@/features/socios/lib/cuota";
+import { diasHasta } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import type { CarnetSocio } from "@/types/socio";
 
@@ -177,7 +178,9 @@ export function CarnetSocioCard({ socio }: { socio: CarnetSocio }) {
   const [verQr, setVerQr] = useState(false);
 
   const diasRestantes = diasHasta(socio.vigencia.hasta);
+  // A quien no paga cuota no se le vence nada: no se le avisa.
   const porVencer =
+    pagaCuota(socio.tipoSocio) &&
     socio.estadoCuota === "AL_DIA" &&
     diasRestantes >= 0 &&
     diasRestantes <= DIAS_PARA_AVISAR;
@@ -263,9 +266,7 @@ export function CarnetSocioCard({ socio }: { socio: CarnetSocio }) {
 
         <EstadoCuotaBadge estado={socio.estadoCuota} />
 
-        <span className="text-muted-foreground">
-          {formatearVigencia(socio.vigencia.desde, socio.vigencia.hasta)}
-        </span>
+        <span className="text-muted-foreground">{textoVigencia(socio)}</span>
 
         {porVencer && (
           <span className="font-medium text-amber-600">
