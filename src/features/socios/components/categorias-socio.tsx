@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, HeartHandshake, Info, Shirt, Star, Store, Trophy, UserPlus } from "lucide-react";
+import { Check, HeartHandshake, Info, Shirt, Star, Trophy, UserPlus } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { useSession } from "@/features/auth/hooks/use-session";
@@ -30,11 +30,11 @@ export interface DetalleAbrirSolicitud {
 }
 
 function Precio({
-  categoria,
+  nombreEnSistema,
   tipos,
   cargando,
 }: {
-  categoria: CategoriaSocio;
+  nombreEnSistema: string;
   tipos: TipoSocio[] | undefined;
   cargando: boolean;
 }) {
@@ -43,8 +43,7 @@ function Precio({
   }
 
   const tipo = tipos?.find(
-    (candidato) =>
-      normalizarNombre(candidato.nombre) === normalizarNombre(categoria.nombreEnSistema),
+    (candidato) => normalizarNombre(candidato.nombre) === normalizarNombre(nombreEnSistema),
   );
 
   // Sin precio cargado no se muestra uno inventado: se manda a preguntar.
@@ -74,11 +73,12 @@ function TarjetaCategoria({
   puedeAsociarse: boolean;
 }) {
   const Icono = ICONOS[categoria.id];
+  const { cuota } = categoria;
 
-  function abrirSolicitud() {
+  function abrirSolicitud(nombreTipo: string) {
     window.dispatchEvent(
       new CustomEvent<DetalleAbrirSolicitud>(EVENTO_ABRIR_SOLICITUD, {
-        detail: { nombreTipo: categoria.nombreEnSistema },
+        detail: { nombreTipo },
       }),
     );
   }
@@ -114,9 +114,12 @@ function TarjetaCategoria({
         </div>
       </div>
 
-      <div className="mt-6">
-        <Precio categoria={categoria} tipos={tipos} cargando={cargando} />
-      </div>
+      {/* Juvenil y Campeón no tienen cuota: no se les muestra precio. */}
+      {cuota && (
+        <div className="mt-6">
+          <Precio nombreEnSistema={cuota.nombreEnSistema} tipos={tipos} cargando={cargando} />
+        </div>
+      )}
 
       <p className="mt-4 text-sm text-pretty text-muted-foreground">{categoria.descripcion}</p>
 
@@ -138,41 +141,34 @@ function TarjetaCategoria({
         </p>
       )}
 
-      {/* El pie va siempre abajo, para que las tarjetas queden alineadas. */}
-      <div className="mt-auto pt-6">
-        {categoria.tramite === "online" ? (
-          puedeAsociarse && (
-            <a
-              href="#solicitud"
-              onClick={abrirSolicitud}
-              className={cn(
-                buttonVariants({
-                  size: "lg",
-                  variant: categoria.destacada ? "default" : "outline",
-                }),
-                "h-11 w-full",
-              )}
-            >
-              <UserPlus className="size-4" aria-hidden />
-              Asociarme
-            </a>
-          )
-        ) : (
-          <p className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-2.5 text-center text-sm text-muted-foreground">
-            <Store className="size-4 shrink-0" aria-hidden />
-            Se tramita en la sede del club
-          </p>
-        )}
-      </div>
+      {/* Solo las categorías con cuota se piden online. El botón va siempre abajo, alineado. */}
+      {cuota && puedeAsociarse && (
+        <div className="mt-auto pt-6">
+          <a
+            href="#solicitud"
+            onClick={() => abrirSolicitud(cuota.nombreEnSistema)}
+            className={cn(
+              buttonVariants({
+                size: "lg",
+                variant: categoria.destacada ? "default" : "outline",
+              }),
+              "h-11 w-full",
+            )}
+          >
+            <UserPlus className="size-4" aria-hidden />
+            Asociarme
+          </a>
+        </div>
+      )}
     </article>
   );
 }
 
 /**
- * Las cuatro categorías de socio, con lo que incluye cada una y su cuota.
+ * Las cuatro categorías de socio, con lo que incluye cada una.
  *
- * Activo y Protector se piden online desde el formulario de abajo; Juvenil y
- * Campeón las gestiona el club, porque dependen de algo que hay que acreditar.
+ * Activo y Protector tienen cuota y se piden desde el formulario de abajo.
+ * Juvenil y Campeón no tienen cuota: sus tarjetas son solo información.
  */
 export function CategoriasSocio() {
   const tipos = useTiposDisponibles();
@@ -195,7 +191,7 @@ export function CategoriasSocio() {
         </h2>
         <p className="mt-4 text-pretty text-muted-foreground">
           Hay una categoría para cada forma de acompañar al club. Fijate qué incluye cada
-          una y cuánto cuesta por mes.
+          una.
         </p>
       </div>
 
