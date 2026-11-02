@@ -16,32 +16,18 @@ import type { CarnetPublico, SituacionCarnet } from "@/types/carnet";
  *
  * El color nunca va solo: cada caso trae ícono y texto propios, porque esto
  * se mira a contraluz, apurado y en cualquier teléfono.
+ *
+ * Dice solo si está al día y, arriba, la categoría. Qué se le cobra a cada
+ * uno lo decide quien está en la puerta: la pantalla no habla de descuentos
+ * ni de entradas gratis.
  */
 const RESULTADOS: Record<
   SituacionCarnet,
-  { titulo: string; detalle: string; clases: string; Icono: typeof CircleCheck }
+  { titulo: string; clases: string; Icono: typeof CircleCheck }
 > = {
-  AL_DIA: {
-    titulo: "AL DÍA",
-    // Sin prometer descuento: lo que corresponde depende de la categoría (el
-    // Protector, por ejemplo, no tiene). Hasta que el backend informe el
-    // beneficio de cada categoría, quien cobra se guía por la categoría.
-    detalle: "Socio al día. Cobrá según su categoría.",
-    clases: "bg-emerald-600 text-white",
-    Icono: CircleCheck,
-  },
-  CUOTA_VENCIDA: {
-    titulo: "CUOTA VENCIDA",
-    detalle: "Entrada al precio normal. Puede regularizar la cuota en la sede.",
-    clases: "bg-red-600 text-white",
-    Icono: CircleX,
-  },
-  DADO_DE_BAJA: {
-    titulo: "DADO DE BAJA",
-    detalle: "Ya no es socio. Entrada al precio normal.",
-    clases: "bg-red-600 text-white",
-    Icono: CircleX,
-  },
+  AL_DIA: { titulo: "AL DÍA", clases: "bg-emerald-600 text-white", Icono: CircleCheck },
+  CUOTA_VENCIDA: { titulo: "CUOTA VENCIDA", clases: "bg-red-600 text-white", Icono: CircleX },
+  DADO_DE_BAJA: { titulo: "DADO DE BAJA", clases: "bg-red-600 text-white", Icono: CircleX },
 };
 
 function Encabezado() {
@@ -67,7 +53,7 @@ function Pantalla({ children }: { children: React.ReactNode }) {
 }
 
 function Resultado({ carnet }: { carnet: CarnetPublico }) {
-  const { titulo, detalle, clases, Icono } = RESULTADOS[carnet.situacion];
+  const { titulo, clases, Icono } = RESULTADOS[carnet.situacion];
 
   return (
     <>
@@ -112,7 +98,6 @@ function Resultado({ carnet }: { carnet: CarnetPublico }) {
       >
         <Icono className="size-12" aria-hidden />
         <p className="font-heading text-4xl font-bold tracking-tight">{titulo}</p>
-        <p className="text-center text-sm text-balance opacity-95">{detalle}</p>
       </section>
 
       <p className="text-center text-sm text-muted-foreground">
