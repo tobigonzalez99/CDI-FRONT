@@ -19,7 +19,7 @@ export const generateMetadata = () =>
  * "Hacete socio": primero las categorías con lo que incluye cada una, y
  * debajo la solicitud de alta —o, si quien mira ya es socio, el
  * agradecimiento con la opción de darse de baja—. Va debajo porque primero
- * se lee y después se actúa; el "Asociarme" de cada tarjeta baja hasta acá.
+ * se lee y después se actúa. La categoría se elige en la solicitud.
  * Si el club escribe un texto desde el panel, va arriba de todo.
  */
 export default function SocioPage() {
@@ -27,10 +27,7 @@ export default function SocioPage() {
     <SeccionEditable slug={PAGINAS.socio} href="/socio" porDefecto={POR_DEFECTO}>
       <div className="space-y-20">
         <CategoriasSocio />
-        {/* `scroll-mt` deja lugar a la barra fija al llegar desde "Asociarme". */}
-        <div id="solicitud" className="scroll-mt-28">
-          <BloqueSocio />
-        </div>
+        <BloqueSocio />
       </div>
     </SeccionEditable>
   );

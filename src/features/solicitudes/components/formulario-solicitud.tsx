@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Cargando, ErrorConsulta } from "@/components/shared/estado-consulta";
-import { normalizarNombre } from "@/features/socios/data/categorias";
 import {
   useEnviarSolicitud,
   useTiposDisponibles,
@@ -63,15 +62,7 @@ function Campo({
   );
 }
 
-interface FormularioSolicitudProps {
-  /**
-   * Categoría elegida desde su tarjeta, por nombre. `vez` cambia en cada
-   * elección, así volver a elegir la misma también se aplica.
-   */
-  tipoElegido?: { nombre: string; vez: number } | null;
-}
-
-export function FormularioSolicitud({ tipoElegido }: FormularioSolicitudProps = {}) {
+export function FormularioSolicitud() {
   const [foto, setFoto] = useState<File | null>(null);
   const [errorFoto, setErrorFoto] = useState<string | null>(null);
   const [claveInputFoto, setClaveInputFoto] = useState(0);
@@ -111,7 +102,6 @@ export function FormularioSolicitud({ tipoElegido }: FormularioSolicitudProps = 
     register,
     handleSubmit,
     setError,
-    setValue,
     control,
     formState: { errors, isSubmitting },
   } = useForm<SolicitudFormValues>({
@@ -129,15 +119,6 @@ export function FormularioSolicitud({ tipoElegido }: FormularioSolicitudProps = 
       comentario: "",
     },
   });
-
-  // La categoría elegida en su tarjeta se aplica en cuanto están las opciones.
-  useEffect(() => {
-    if (!tipoElegido || !tipos.data) return;
-    const tipo = tipos.data.find(
-      (candidato) => normalizarNombre(candidato.nombre) === normalizarNombre(tipoElegido.nombre),
-    );
-    if (tipo) setValue("tipoSocioId", tipo.id, { shouldValidate: true });
-  }, [tipoElegido, tipos.data, setValue]);
 
   /**
    * Lo que se paga al enviar: el primer mes de la categoría elegida. Lo cobra

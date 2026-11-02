@@ -1,9 +1,7 @@
 "use client";
 
-import { Check, HeartHandshake, Info, Shirt, Star, Trophy, UserPlus } from "lucide-react";
+import { Check, HeartHandshake, Info, Shirt, Star, Trophy } from "lucide-react";
 
-import { buttonVariants } from "@/components/ui/button";
-import { useSession } from "@/features/auth/hooks/use-session";
 import {
   CATEGORIAS_SOCIO,
   normalizarNombre,
@@ -21,13 +19,6 @@ const ICONOS: Record<IdCategoria, typeof Star> = {
   juvenil: Shirt,
   campeon: Trophy,
 };
-
-/** Evento con el que una tarjeta abre el formulario de abajo con su categoría ya elegida. */
-export const EVENTO_ABRIR_SOLICITUD = "cdi:abrir-solicitud";
-
-export interface DetalleAbrirSolicitud {
-  nombreTipo: string;
-}
 
 function Precio({
   nombreEnSistema,
@@ -65,23 +56,13 @@ function TarjetaCategoria({
   categoria,
   tipos,
   cargando,
-  puedeAsociarse,
 }: {
   categoria: CategoriaSocio;
   tipos: TipoSocio[] | undefined;
   cargando: boolean;
-  puedeAsociarse: boolean;
 }) {
   const Icono = ICONOS[categoria.id];
   const { cuota } = categoria;
-
-  function abrirSolicitud(nombreTipo: string) {
-    window.dispatchEvent(
-      new CustomEvent<DetalleAbrirSolicitud>(EVENTO_ABRIR_SOLICITUD, {
-        detail: { nombreTipo },
-      }),
-    );
-  }
 
   return (
     <article
@@ -140,42 +121,16 @@ function TarjetaCategoria({
           {categoria.aclaracion}
         </p>
       )}
-
-      {/* Solo las categorías con cuota se piden online. El botón va siempre abajo, alineado. */}
-      {cuota && puedeAsociarse && (
-        <div className="mt-auto pt-6">
-          <a
-            href="#solicitud"
-            onClick={() => abrirSolicitud(cuota.nombreEnSistema)}
-            className={cn(
-              buttonVariants({
-                size: "lg",
-                variant: categoria.destacada ? "default" : "outline",
-              }),
-              "h-11 w-full",
-            )}
-          >
-            <UserPlus className="size-4" aria-hidden />
-            Asociarme
-          </a>
-        </div>
-      )}
     </article>
   );
 }
 
 /**
- * Las cuatro categorías de socio, con lo que incluye cada una.
- *
- * Activo y Protector tienen cuota y se piden desde el formulario de abajo.
- * Juvenil y Campeón no tienen cuota: sus tarjetas son solo información.
+ * Las cuatro categorías de socio, con lo que incluye cada una. Son solo
+ * información: la categoría se elige en el formulario de la solicitud.
  */
 export function CategoriasSocio() {
   const tipos = useTiposDisponibles();
-  const { user } = useSession();
-
-  // Quien ya entró como socio o como administrador no tiene a qué asociarse.
-  const puedeAsociarse = !user;
 
   return (
     <section aria-labelledby="categorias-titulo">
@@ -202,7 +157,6 @@ export function CategoriasSocio() {
             categoria={categoria}
             tipos={tipos.data}
             cargando={tipos.isPending}
-            puedeAsociarse={puedeAsociarse}
           />
         ))}
       </div>
