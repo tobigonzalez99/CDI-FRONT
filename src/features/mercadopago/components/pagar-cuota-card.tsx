@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { CreditCard, LoaderCircle, TriangleAlert } from "lucide-react";
+import { CreditCard, LoaderCircle, Minus, Plus, TriangleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -21,15 +22,22 @@ import { formatearMonto } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { MESES_PAGO_ONLINE } from "@/types/mercadopago";
 
-const CLASES_SELECT =
-  "h-11 w-full rounded-lg border border-border bg-background px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
-
-const OPCIONES_MESES = Array.from(
-  { length: MESES_PAGO_ONLINE.max - MESES_PAGO_ONLINE.min + 1 },
-  (_, indice) => MESES_PAGO_ONLINE.min + indice,
-);
+const { min: MIN_MESES, max: MAX_MESES } = MESES_PAGO_ONLINE;
 
 const textoMeses = (meses: number) => `${meses} ${meses === 1 ? "mes" : "meses"}`;
+
+/** Lo que escribió el socio, si es una cantidad de meses que se puede pagar. */
+function mesesValidos(texto: string): number | null {
+  const numero = Number(texto);
+  return texto.trim() !== "" &&
+    Number.isInteger(numero) &&
+    numero >= MIN_MESES &&
+    numero <= MAX_MESES
+    ? numero
+    : null;
+}
+
+const limitar = (numero: number) => Math.min(MAX_MESES, Math.max(MIN_MESES, numero));
 
 /**
  * Pago de la cuota con Mercado Pago, desde el perfil.
@@ -41,8 +49,37 @@ const textoMeses = (meses: number) => `${meses} ${meses === 1 ? "mes" : "meses"}
  */
 export function PagarCuotaCard() {
   const mesesId = useId();
-  const [meses, setMeses] = useState<number>(MESES_PAGO_ONLINE.min);
+  /** La última cantidad válida: es la que se cotiza y la que se paga. */
+  const [meses, setMeses] = useState<number>(MIN_MESES);
+  /** Lo que está escrito en el campo, que mientras se tipea puede no ser válido. */
+  const [texto, setTexto] = useState(String(MIN_MESES));
   const [problema, setProblema] = useState<string | null>(null);
+
+  const textoValido = mesesValidos(texto) !== null;
+
+  function elegir(nuevos: number) {
+    const limitados = limitar(nuevos);
+    setMeses(limitados);
+    setTexto(String(limitados));
+    setProblema(null);
+  }
+
+  function alEscribir(valor: string) {
+    setTexto(valor);
+    setProblema(null);
+    const numero = mesesValidos(valor);
+    if (numero !== null) setMeses(numero);
+  }
+
+  /**
+   * Al salir del campo se corrige lo que haya quedado fuera de rango: vacío
+   * vuelve a la última cantidad válida, 20 queda en 12 y 0 en 1.
+   */
+  function alSalir() {
+    if (textoValido) return;
+    const numero = Math.trunc(Number(texto));
+    elegir(texto.trim() === "" || Number.isNaN(numero) ? meses : numero);
+  }
   const [redirigiendo, setRedirigiendo] = useState(false);
 
   const cotizacion = useCotizacionCuota(meses);
@@ -58,9 +95,12 @@ export function PagarCuotaCard() {
     return () => window.removeEventListener("pageshow", alVolver);
   }, []);
 
-  /** El total que se ve en pantalla corresponde a los meses elegidos. */
+  /**
+   * El total que se ve en pantalla corresponde a los meses elegidos. Mientras
+   * lo escrito no sea válido no hay total para pagar.
+   */
   const totalVigente =
-    cotizacion.data && cotizacion.data.meses === meses ? cotizacion.data : null;
+    textoValido && cotizacion.data && cotizacion.data.meses === meses ? cotizacion.data : null;
 
   async function pagar() {
     if (!totalVigente) return;
@@ -106,22 +146,65 @@ export function PagarCuotaCard() {
         <div className="grid gap-4 sm:grid-cols-2 sm:items-end">
           <div className="grid gap-2">
             <Label htmlFor={mesesId}>¿Cuántos meses querés pagar?</Label>
-            <select
-              id={mesesId}
-              className={CLASES_SELECT}
-              value={meses}
-              disabled={ocupado}
-              onChange={(evento) => {
-                setMeses(Number(evento.target.value));
-                setProblema(null);
-              }}
+            {/*
+              Un contador y no una lista desplegable: se sube y se baja con los
+              botones, o se escribe el número directamente.
+            */}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-11 shrink-0"
+                aria-label="Un mes menos"
+                disabled={ocupado || meses <= MIN_MESES}
+                onClick={() => elegir(meses - 1)}
+              >
+                <Minus aria-hidden />
+              </Button>
+
+              <div className="relative flex-1">
+                <Input
+                  id={mesesId}
+                  type="number"
+                  inputMode="numeric"
+                  min={MIN_MESES}
+                  max={MAX_MESES}
+                  step={1}
+                  value={texto}
+                  disabled={ocupado}
+                  aria-invalid={!textoValido}
+                  aria-describedby={`${mesesId}-ayuda`}
+                  onChange={(evento) => alEscribir(evento.target.value)}
+                  onBlur={alSalir}
+                  // Sin las flechitas propias del navegador: ya están los botones − y +.
+                  className="h-11 pr-16 text-center text-lg font-semibold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+                <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted-foreground">
+                  {meses === 1 && textoValido ? "mes" : "meses"}
+                </span>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-11 shrink-0"
+                aria-label="Un mes más"
+                disabled={ocupado || meses >= MAX_MESES}
+                onClick={() => elegir(meses + 1)}
+              >
+                <Plus aria-hidden />
+              </Button>
+            </div>
+            <p
+              id={`${mesesId}-ayuda`}
+              className={cn("text-xs", textoValido ? "text-muted-foreground" : "text-destructive")}
             >
-              {OPCIONES_MESES.map((opcion) => (
-                <option key={opcion} value={opcion}>
-                  {textoMeses(opcion)}
-                </option>
-              ))}
-            </select>
+              {textoValido
+                ? `Entre ${MIN_MESES} y ${MAX_MESES}. También podés escribir el número.`
+                : `Elegí entre ${MIN_MESES} y ${MAX_MESES} meses.`}
+            </p>
           </div>
 
           {/* El total lo da el backend: mientras llega el nuevo se ve el anterior, atenuado. */}
