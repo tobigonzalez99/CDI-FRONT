@@ -239,26 +239,63 @@ tiene que estar en `CORS_ORIGINS` (si se prueba por la IP de red, agregarla ahí
 > escanear desde un celular**: para probarlo hay que poner la IP de red de la máquina
 > (ej. `http://192.168.0.10:3000`) y en producción el dominio del club.
 
-### Solicitudes de alta — "Hacete socio" (implementado)
+### Solicitudes de alta — "Hacete socio" con pago (implementado)
 
-Una persona se postula desde el sitio público; el alta **no** se efectúa hasta que un
-administrador la aprueba. La tabla guarda **solo solicitudes pendientes**: aprobar crea
-el socio y borra la solicitud; rechazar borra los datos y la foto.
+Una persona se postula desde el sitio público **y paga el primer mes con Mercado Pago**.
+Cuando Mercado Pago aprueba el pago, **el socio se crea solo** y le llega el correo de
+bienvenida. No hace falta que intervenga el admin. La tabla guarda **solo solicitudes
+pendientes**: el alta (automática o a mano) crea el socio y borra la solicitud; un pago
+rechazado o vencido, o un rechazo del admin, borra los datos y la foto.
 
 | Método | Ruta | Acceso | Notas |
 |---|---|---|---|
-| GET | `/tipos-socio/disponibles` | **público** | Categorías activas, para el selector del formulario |
-| POST | `/solicitudes` | **público** | `multipart/form-data`. Máx. 3 envíos por minuto y por IP |
-| GET | `/solicitudes` | ADMIN | Paginado, más antiguas primero. Devuelve la tarjeta completa |
-| GET | `/solicitudes/pendientes/total` | ADMIN | `{ pendientes: n }` para el indicador del panel |
+| GET | `/tipos-socio/disponibles` | **público** | Categorías activas con su `montoCuota`, para el selector del formulario |
+| POST | `/solicitudes` | **público** | `multipart/form-data` → **`201 { id, initPoint }`**: el front hace `window.location = initPoint`. Máx. 3 envíos por minuto y por IP |
+| GET | `/solicitudes` | ADMIN | Paginado, más antiguas primero. Cada una trae `estado`, `venceEn` y `motivoRevision` |
+| GET | `/solicitudes/pendientes/total` | ADMIN | `{ pendientes: n }`: solo las que esperan algo del admin (en revisión, o anteriores al pago online). Las que se están pagando no cuentan |
 | GET | `/solicitudes/:id` | ADMIN | |
-| POST | `/solicitudes/:id/aprobar` | ADMIN | "Dar de alta". Devuelve `{ socio, passwordInicial }`. Cuerpo opcional: `tipoSocioId`, `vigencia` |
-| DELETE | `/solicitudes/:id` | ADMIN | "Rechazar solicitud". Borra datos y foto, `204` |
+| POST | `/solicitudes/:id/aprobar` | ADMIN | "Dar de alta" **a mano** (pagó en el club, o una en revisión). Corta su cobro online y devuelve `{ socio, passwordInicial, correoBienvenidaEnviado }`. Cuerpo opcional: `tipoSocioId`, `vigencia` |
+| DELETE | `/solicitudes/:id` | ADMIN | "Rechazar solicitud". Corta su cobro online y borra datos y foto, `204` |
 
 **Campos del formulario — todos obligatorios menos `comentario`:** `nombre`, `apellido`,
 `dni`, `email`, `domicilio`, `localidad`, `telefono`, `fechaNacimiento`, `tipoSocioId`
-y `foto` (archivo). Aprobar sin cuerpo usa la categoría solicitada y una vigencia de un
-mes desde hoy.
+y `foto` (archivo). El importe es la cuota de la categoría elegida (1 mes) y lo fija el
+backend al crear el cobro. Aprobar a mano sin cuerpo usa la categoría solicitada y una
+vigencia de un mes desde hoy.
+
+**`estado` de una solicitud:**
+
+| Estado | Qué significa |
+|---|---|
+| `PENDIENTE_PAGO` con `venceEn` | La persona está pagando. Si no paga, a los 30 minutos vence con su cobro y se borra |
+| `PENDIENTE_PAGO` sin `venceEn` | Anterior al pago online: no vence, la resuelve el admin a mano |
+| `REQUIERE_REVISION` | **Se pagó, pero el alta no se pudo hacer sola** (el DNI o el correo se ocuparon entre medio). La resuelve el admin; `motivoRevision` dice por qué |
+
+**Cómo se da el alta.** Al aprobarse el pago, en **una sola transacción**: se crean el
+usuario y la ficha (con la foto y la categoría de la solicitud, aunque esa categoría se
+haya desactivado después), se registra el pago (cuenta Mercado Pago, comprobante
+`MP-<id>`), la vigencia arranca hoy por un mes, y se borra la solicitud. Después del
+commit sale el correo de bienvenida con el enlace para elegir la contraseña. La página
+de vuelta recibe `APROBADO` recién cuando el socio ya existe.
+
+- **Reemplazo.** Si alguien abandonó el pago y vuelve a enviar el formulario con el
+  mismo DNI **y** el mismo correo, su solicitud sin pagar se reemplaza: el cobro viejo
+  deja de poder pagarse y se borran los datos y la foto viejos. Si coincide uno solo de
+  los dos, es un `409`, como siempre: nadie pisa la solicitud de otro sabiendo solo su
+  DNI.
+- **Rechazo = no queda ningún dato** (decisión del cliente). Un pago rechazado borra la
+  solicitud y la foto en el momento y corta la validez del cobro, así no se puede
+  pagar después. A diferencia de la cuota, no se puede reintentar con otra tarjeta en el
+  mismo checkout: hay que completar el formulario de nuevo.
+- **Rechazar o "Dar de alta" a mano corta primero el cobro online**, para que no se
+  pueda pagar algo que ya se resolvió.
+- **`EN_REVISION` en la página de vuelta** queda para lo extraordinario: un pago que entra
+  en el mismo instante en que la solicitud se rechaza o se da de alta a mano, un importe
+  que no coincide, o una identidad que se ocupó entre medio. La plata nunca se pierde:
+  el cobro queda registrado con su `mp_payment_id` para que lo resuelva el admin.
+- Si Mercado Pago no está configurado, `POST /solicitudes` responde
+  `503 PAYMENT_GATEWAY_ERROR` **sin guardar nada**. Lo mismo si la categoría no tiene
+  cuota (`fieldErrors.tipoSocioId`).
 
 ### Datos únicos por persona
 
@@ -397,7 +434,7 @@ calcula siempre el backend**: la cuota de su categoría por los meses.
 | POST | `/webhooks/mercadopago` | Mercado Pago | Avisos de pago. No lo llama el sitio |
 
 `estado`: `PENDIENTE` | `APROBADO` | `RECHAZADO` | `EN_REVISION`. `tipo`: `CUOTA` | `ALTA`
-(`ALTA` llega con la tarea 4).
+(el alta con pago está en "Solicitudes de alta").
 
 **Cómo viaja un pago.** Cada intento queda en `cobros_online` con una `referencia`
 aleatoria de 128 bits. Esa referencia va a Mercado Pago como `external_reference`, y
@@ -611,11 +648,11 @@ los de una base existente, editarlos desde el panel (`PATCH /tipos-socio/:id`).
 - `cuentas`: destino de los cobros (`nombre` único, `tipo`, `identificador`, `activa`, `uso_sistema` = `EFECTIVO` | `MERCADO_PAGO`, único). El club usa solo esas dos cuentas: Efectivo y Mercado Pago.
 - `cambios_password`: cuándo cambió su clave cada usuario y si fue voluntario (no guarda hashes). Sirve para el límite de 2 cada 30 días.
 - `enlaces_password`: enlaces **pendientes** para elegir contraseña (`usuario_id`, `token_hash` SHA-256 único, `tipo` = `BIENVENIDA` | `RECUPERACION`, `expira_en`). Usarlo lo borra.
-- `cobros_online`: cada intento de cobro por Mercado Pago (`referencia` única = `external_reference`, `tipo`, `estado`, `socio_id`, `meses`, `monto_mensual`, `total`, `preferencia_id`, `init_point`, `expira_en`, `mp_payment_id` único, `pago_id` → el `Pago` registrado, `detalle`). No es el registro contable: ese es `pagos`.
+- `cobros_online`: cada intento de cobro por Mercado Pago (`referencia` única = `external_reference`, `tipo`, `estado`, `socio_id`, `meses`, `monto_mensual`, `total`, `preferencia_id`, `init_point`, `expira_en`, `mp_payment_id` único, `pago_id` → el `Pago` registrado, `solicitud_id` en un alta (queda nulo al resolverse), `detalle`). No es el registro contable: ese es `pagos`.
 - `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, `origen` (`PANEL` | `MERCADO_PAGO`), quién registró (nulo solo en los cobros online), y datos de anulación).
 - `paginas`: secciones de contenido editable (`slug` único, `titulo`, `resumen`, `contenido` en Markdown, `publicada`).
 - `disciplinas`: actividades del menú (`slug` único, `orden`, `activa`). Lista plana, sin jerarquía.
-- `solicitudes_socio`: postulaciones pendientes (datos del formulario + `foto_path` + `tipo_socio_id`). `dni` y `email` únicos. Se borra al aprobar o rechazar.
+- `solicitudes_socio`: postulaciones pendientes (datos del formulario + `foto_path` + `tipo_socio_id` + `estado` = `PENDIENTE_PAGO` | `REQUIERE_REVISION`, `vence_en`, `motivo_revision`). `dni` y `email` únicos. Se borra al darse el alta, al rechazarla o si el pago se rechaza o vence.
 - `solicitudes_baja`: pedidos de baja pendientes (`socio_id` único + `motivo` opcional). Se borra al aprobar o rechazar; aprobar solo cambia `socios.estado` a `BAJA`.
 - `avisos_enviados`: cada correo automático mandado (`socio_id`, `tipo` = `CUOTA_POR_VENCER` | `CUOTA_VENCIDA` | `CUMPLEANIOS`, `fecha_referencia`, `fecha_envio`, `email`). `fecha_referencia` es el vencimiento en los avisos de cuota y el día del saludo en el de cumpleaños. Único por socio + tipo + fecha: es lo que impide repetirlo.
 - `socios.foto_path` guarda la ruta relativa del archivo; la URL pública se arma al responder.

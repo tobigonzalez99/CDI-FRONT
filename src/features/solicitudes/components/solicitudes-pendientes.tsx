@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Inbox, LoaderCircle, Trash2 } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { Check, Clock, Inbox, LoaderCircle, Trash2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,6 +19,35 @@ import { mensajeDeError } from "@/lib/api/errors";
 import { formatearFecha, formatearFechaCorta } from "@/lib/formato";
 import type { CreateSocioResponse } from "@/types/socio";
 import type { SolicitudSocio } from "@/types/solicitud";
+
+/**
+ * En qué anda la solicitud, en una línea.
+ *
+ * Las que se están pagando vencen solas si la persona no paga, así que se
+ * muestra la hora: dar de alta o rechazar una de esas le corta el pago online.
+ */
+function EstadoDeLaSolicitud({ solicitud }: { solicitud: SolicitudSocio }) {
+  if (solicitud.estado === "REQUIERE_REVISION") {
+    return (
+      <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+        <TriangleAlert className="size-3.5" aria-hidden />
+        Pagó · requiere revisión
+      </span>
+    );
+  }
+
+  if (solicitud.venceEn) {
+    return (
+      <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
+        <Clock className="size-3.5" aria-hidden />
+        Esperando el pago · vence a las {format(parseISO(solicitud.venceEn), "HH:mm")}
+      </span>
+    );
+  }
+
+  // Anterior al pago online: no vence y se resuelve a mano, como siempre.
+  return null;
+}
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
@@ -88,8 +118,20 @@ function TarjetaSolicitud({
               Pidió {solicitud.tipoSocio.nombre} · enviada el{" "}
               {formatearFechaCorta(solicitud.createdAt.slice(0, 10))}
             </p>
+            <EstadoDeLaSolicitud solicitud={solicitud} />
           </div>
         </div>
+
+        {solicitud.estado === "REQUIERE_REVISION" && (
+          <p className="mt-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>
+              Esta persona ya pagó, pero el alta no se pudo hacer sola
+              {solicitud.motivoRevision ? `: ${solicitud.motivoRevision}` : "."} Revisá los
+              datos y resolvela a mano.
+            </span>
+          </p>
+        )}
 
         <dl className="mt-5 grid gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-3">
           <Dato etiqueta="DNI" valor={solicitud.dni} />

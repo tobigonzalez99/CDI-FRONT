@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { useForm, type SubmitHandler } from "react-hook-form";
+import { useForm, useWatch, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CircleCheck, Clock, LoaderCircle, X } from "lucide-react";
 
@@ -75,9 +75,20 @@ export function FormularioSolicitud({ tipoElegido }: FormularioSolicitudProps = 
   const [foto, setFoto] = useState<File | null>(null);
   const [errorFoto, setErrorFoto] = useState<string | null>(null);
   const [claveInputFoto, setClaveInputFoto] = useState(0);
-  const [enviada, setEnviada] = useState(false);
+  /** Ya se creó el cobro y la página está yendo a Mercado Pago. */
+  const [redirigiendo, setRedirigiendo] = useState(false);
   /** Mensaje del 429: el backend dice cuándo se puede reintentar. */
   const [esperaPorLimite, setEsperaPorLimite] = useState<string | null>(null);
+
+  // Si vuelve desde Mercado Pago con "atrás", el navegador puede restaurar la
+  // página tal como quedó, con el botón trabado en "Te llevamos…".
+  useEffect(() => {
+    function alVolver(evento: PageTransitionEvent) {
+      if (evento.persisted) setRedirigiendo(false);
+    }
+    window.addEventListener("pageshow", alVolver);
+    return () => window.removeEventListener("pageshow", alVolver);
+  }, []);
 
   const ids = {
     nombre: useId(),
@@ -101,7 +112,7 @@ export function FormularioSolicitud({ tipoElegido }: FormularioSolicitudProps = 
     handleSubmit,
     setError,
     setValue,
-    reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<SolicitudFormValues>({
     resolver: zodResolver(solicitudSchema),
@@ -128,6 +139,13 @@ export function FormularioSolicitud({ tipoElegido }: FormularioSolicitudProps = 
     if (tipo) setValue("tipoSocioId", tipo.id, { shouldValidate: true });
   }, [tipoElegido, tipos.data, setValue]);
 
+  /**
+   * Lo que se paga al enviar: el primer mes de la categoría elegida. Lo cobra
+   * el backend con su propio cálculo; acá solo se avisa antes de ir a pagar.
+   */
+  const tipoSocioId = useWatch({ control, name: "tipoSocioId" });
+  const primerMes = tipos.data?.find((tipo) => tipo.id === tipoSocioId)?.montoCuota ?? null;
+
   function alElegirFoto(evento: React.ChangeEvent<HTMLInputElement>) {
     const archivo = evento.target.files?.[0];
     if (!archivo) {
@@ -147,12 +165,12 @@ export function FormularioSolicitud({ tipoElegido }: FormularioSolicitudProps = 
     }
 
     try {
-      await enviar({ ...valores, foto });
-      reset();
-      setFoto(null);
-      setClaveInputFoto((clave) => clave + 1);
+      // La solicitud queda guardada esperando el pago; si no se paga, vence
+      // sola. El alta se hace sola cuando Mercado Pago aprueba el pago.
+      const { initPoint } = await enviar({ ...valores, foto });
       setEsperaPorLimite(null);
-      setEnviada(true);
+      setRedirigiendo(true);
+      window.location.assign(initPoint);
     } catch (error) {
       if (esApiError(error) && error.code === "TOO_MANY_REQUESTS") {
         setEsperaPorLimite(error.message);
@@ -164,22 +182,6 @@ export function FormularioSolicitud({ tipoElegido }: FormularioSolicitudProps = 
       }
     }
   };
-
-  if (enviada) {
-    return (
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-10 text-center">
-        <CircleCheck className="size-9 text-success" aria-hidden />
-        <h3 className="font-heading text-lg font-bold">Recibimos tu solicitud</h3>
-        <p className="max-w-md text-sm text-muted-foreground">
-          La administración del club la va a revisar. Cuando quede aprobada vas a
-          recibir tus datos de acceso para entrar al sitio.
-        </p>
-        <Button type="button" variant="outline" onClick={() => setEnviada(false)}>
-          Enviar otra solicitud
-        </Button>
-      </div>
-    );
-  }
 
   if (tipos.isPending) return <Cargando etiqueta="Cargando las categorías…" />;
   if (tipos.isError) {
@@ -356,9 +358,37 @@ export function FormularioSolicitud({ tipoElegido }: FormularioSolicitudProps = 
         />
       </Campo>
 
-      <Button type="submit" size="lg" className="h-12 w-full text-base" disabled={isSubmitting}>
-        {isSubmitting && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
-        {isSubmitting ? "Enviando…" : "Enviar solicitud"}
+      {/* Lo que va a pagar, dicho antes de que lo mande a Mercado Pago. */}
+      <div className="rounded-xl bg-muted/50 p-4 text-sm" aria-live="polite">
+        {primerMes !== null ? (
+          <p>
+            Al enviar pagás el primer mes,{" "}
+            <span className="font-semibold">{formatearMonto(primerMes)}</span>, con tarjeta o
+            con dinero en tu cuenta de Mercado Pago. Cuando el pago se aprueba ya sos socio y
+            te llega un correo para elegir tu contraseña.
+          </p>
+        ) : (
+          <p className="text-muted-foreground">
+            Elegí la categoría para ver cuánto vas a pagar. Al enviar pagás el primer mes con
+            Mercado Pago y, en cuanto se aprueba el pago, ya sos socio.
+          </p>
+        )}
+      </div>
+
+      <Button
+        type="submit"
+        size="lg"
+        className="h-12 w-full text-base"
+        disabled={isSubmitting || redirigiendo}
+      >
+        {(isSubmitting || redirigiendo) && (
+          <LoaderCircle className="size-4 animate-spin" aria-hidden />
+        )}
+        {redirigiendo
+          ? "Te llevamos a Mercado Pago…"
+          : isSubmitting
+            ? "Enviando…"
+            : "Pagar y enviar solicitud"}
       </Button>
     </form>
   );

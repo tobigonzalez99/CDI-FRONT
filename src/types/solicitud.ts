@@ -25,7 +25,24 @@ export interface SolicitudSocio {
   comentario: string | null;
   /** Cuándo se envió, para ordenar y mostrar la antigüedad del pedido. */
   createdAt: ISODateString;
+  estado: EstadoSolicitud;
+  /**
+   * Con fecha: la persona está pagando en Mercado Pago y, si no paga, la
+   * solicitud vence y se borra ahí. En `null`: es anterior al pago online,
+   * no vence y se resuelve a mano como siempre.
+   */
+  venceEn: ISODateString | null;
+  /** Por qué quedó en revisión. Solo con `REQUIERE_REVISION`. */
+  motivoRevision: string | null;
 }
+
+/**
+ * - `PENDIENTE_PAGO`: todavía no se pagó (o es anterior al pago online).
+ * - `REQUIERE_REVISION`: se pagó, pero el alta no se pudo hacer sola y la
+ *   tiene que resolver el administrador.
+ */
+export const ESTADOS_SOLICITUD = ["PENDIENTE_PAGO", "REQUIERE_REVISION"] as const;
+export type EstadoSolicitud = (typeof ESTADOS_SOLICITUD)[number];
 
 /**
  * Formulario público. **Todos los campos son obligatorios salvo `comentario`.**
@@ -45,10 +62,13 @@ export interface CreateSolicitudInput {
   comentario?: string;
 }
 
-/** Respuesta del envío: no devuelve los datos, solo la confirmación. */
+/**
+ * Respuesta del envío: el cobro del primer mes en Mercado Pago. La persona
+ * queda dada de alta sola cuando el pago se aprueba.
+ */
 export interface SolicitudEnviadaResponse {
   id: string;
-  mensaje: string;
+  initPoint: string;
 }
 
 /** Ajustes opcionales del administrador al dar de alta. */
