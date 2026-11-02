@@ -239,9 +239,7 @@ function FormularioPagoCuota({
           ? "Te llevamos a Mercado Pago…"
           : iniciando
             ? "Preparando el pago…"
-            : totalVigente
-              ? `Pagar ${formatearMonto(totalVigente.total)} con Mercado Pago`
-              : "Pagar con Mercado Pago"}
+            : "Pagar"}
       </Button>
 
       <div className="grid gap-1 text-center text-xs text-muted-foreground">
