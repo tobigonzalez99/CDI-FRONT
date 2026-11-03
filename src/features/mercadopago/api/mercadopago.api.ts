@@ -1,6 +1,8 @@
 import { api } from "@/lib/api/client";
 import type {
+  ActivarDebitoResponse,
   CotizacionCuota,
+  DebitoAutomatico,
   EstadoPagoMpResponse,
   IniciarPagoCuotaInput,
   IniciarPagoCuotaResponse,
@@ -38,4 +40,27 @@ export async function iniciarPagoCuota(
 ): Promise<IniciarPagoCuotaResponse> {
   const { data } = await api.post<IniciarPagoCuotaResponse>("/pagos/mercadopago/cuota", input);
   return data;
+}
+
+/** En qué anda el débito automático del socio. */
+export async function obtenerDebito(): Promise<DebitoAutomatico> {
+  const { data } = await api.get<DebitoAutomatico>("/pagos/mercadopago/debito");
+  return data;
+}
+
+/**
+ * Crea la suscripción en Mercado Pago; el socio la confirma allá. Si ya tenía
+ * una pendiente por la misma cuota, devuelve esa.
+ */
+export async function activarDebito(): Promise<ActivarDebitoResponse> {
+  const { data } = await api.post<ActivarDebitoResponse>("/pagos/mercadopago/debito");
+  return data;
+}
+
+/**
+ * Cancela el débito. Si Mercado Pago no confirma la cancelación responde 503
+ * y el débito **sigue vigente**: hay que reintentar.
+ */
+export async function cancelarDebito(): Promise<void> {
+  await api.delete("/pagos/mercadopago/debito");
 }

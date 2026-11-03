@@ -47,3 +47,27 @@ export interface IniciarPagoCuotaResponse {
   meses: number;
   total: number;
 }
+
+/**
+ * Débito automático de la cuota.
+ *
+ * - `SIN_DEBITO`: no tiene (o lo canceló).
+ * - `PENDIENTE`: lo activó acá, pero todavía no se suscribió en Mercado Pago.
+ * - `ACTIVO`: Mercado Pago le cobra la cuota todos los meses.
+ * - `PAUSADO`: lo pausó desde su cuenta de Mercado Pago; no cobra.
+ */
+export const ESTADOS_DEBITO = ["SIN_DEBITO", "PENDIENTE", "ACTIVO", "PAUSADO"] as const;
+export type EstadoDebito = (typeof ESTADOS_DEBITO)[number];
+
+export interface DebitoAutomatico {
+  estado: EstadoDebito;
+  /** Lo que se debita por mes; sin débito, la cuota actual. `null` sin cuota. */
+  monto: number | null;
+  /** Solo con `PENDIENTE`, para retomar la suscripción en Mercado Pago. */
+  initPoint?: string | null;
+}
+
+export interface ActivarDebitoResponse {
+  initPoint: string;
+  monto: number;
+}

@@ -5,6 +5,7 @@ import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CambiarPasswordCard } from "@/features/auth/components/cambiar-password-card";
+import { DebitoAutomatico } from "@/features/mercadopago/components/debito-automatico";
 import { PagarCuota } from "@/features/mercadopago/components/pagar-cuota";
 import { pagaCuota } from "@/features/socios/lib/cuota";
 import { HistorialPagosCard } from "@/features/pagos/components/historial-pagos-card";
@@ -86,8 +87,9 @@ export function MiPerfil() {
           Tu categoría no paga cuota: estás siempre al día.
         </p>
       ) : (
-        <div className="mx-auto w-full max-w-xl">
+        <div className="mx-auto grid w-full max-w-xl gap-3">
           <PagarCuota className="w-full" />
+          <DebitoAutomatico />
         </div>
       )}
 

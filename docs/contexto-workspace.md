@@ -486,6 +486,59 @@ pide solo cuando `SITIO_URL` es https. **Mercado Pago rechaza `auto_return` haci
 `localhost`** (`invalid_auto_return`, comprobado el 2026-11-02): en desarrollo el socio vuelve
 con "Volver al sitio", y si no vuelve, el control de cada minuto registra el pago igual.
 
+### Débito automático de la cuota (backend implementado)
+
+El socio activa desde su perfil que **Mercado Pago le cobre la cuota todos los meses**.
+Cada cobro mensual se registra solo como un pago de un mes, que extiende la vigencia,
+y le llega el correo "Recibimos tu pago".
+
+| Método | Ruta | Acceso | Notas |
+|---|---|---|---|
+| GET | `/pagos/mercadopago/debito` | SOCIO | `{ estado, monto, initPoint }`. `estado`: `SIN_DEBITO` \| `PENDIENTE` \| `ACTIVO` \| `PAUSADO`. `initPoint` solo si está `PENDIENTE`, para retomarlo |
+| POST | `/pagos/mercadopago/debito` | SOCIO | Activar → `{ initPoint, monto }`. El front hace `window.location = initPoint`. Si ya tiene uno pendiente por la misma cuota devuelve ese; si lo tiene activo, `409` |
+| DELETE | `/pagos/mercadopago/debito` | SOCIO | Cancelar. `204`; `404` si no tiene. Si Mercado Pago no confirma, `503 PAYMENT_GATEWAY_ERROR` y **no** se da por cancelado |
+
+**Un plan de Mercado Pago por socio** (`/preapproval_plan`). El socio entra con su
+cuenta de Mercado Pago, elige la tarjeta y autoriza. Se eligió así porque una
+suscripción suelta (`/preapproval`) exige el correo exacto de la cuenta de Mercado
+Pago del pagador, que suele no ser el que tiene en el club, y Mercado Pago la rechaza si
+no coincide con una cuenta real (comprobado el 2026-11-03).
+
+| Estado | Qué significa |
+|---|---|
+| `PENDIENTE` | El plan está creado, pero el socio todavía no se suscribió en Mercado Pago |
+| `ACTIVO` | Autorizó la suscripción: Mercado Pago cobra cada mes |
+| `PAUSADO` | Lo pausó desde Mercado Pago: no cobra hasta que lo reanude |
+| `CANCELADO` | Terminado (no aparece en la API: es `SIN_DEBITO`). Para volver se activa uno nuevo |
+
+- **Cada cobro mensual aprobado es un `Pago`** de un mes (medio y origen `MERCADO_PAGO`,
+  comprobante `MP-<id>`, cuenta Mercado Pago), con el importe que cobró Mercado Pago.
+  Es idempotente, igual que los pagos de cuota. Los rechazados no se registran: Mercado
+  Pago reintenta, y si no logra cobrar, la cuota vence como cualquier otra y salen los
+  avisos.
+- **Un control cada dos minutos** sincroniza los débitos con Mercado Pago (suscripción
+  autorizada, pausas, cancelaciones y cobros nuevos), así no depende de los avisos.
+  También se atienden los avisos `subscription_preapproval` y
+  `subscription_authorized_payment`.
+- **Un socio dado de baja** (`BAJA` o borrado lógico) **pierde el débito**: el control se
+  lo cancela en Mercado Pago para que no le sigan cobrando. Antes se registran los
+  cobros que ya se hubieran hecho.
+- **Si el socio lo cancela desde su cuenta de Mercado Pago**, el control lo ve y queda
+  cancelado acá también.
+- **A lo sumo un débito vigente por socio** (índice único parcial). Una categoría sin
+  cuota no puede activarlo (`VALIDATION_ERROR` en `debito`).
+- **Pagar a mano sigue valiendo.** Un socio con débito puede pagar meses por adelantado
+  desde el perfil o en el club: la vigencia se suma.
+- **Si cambia la cuota de la categoría,** un débito `ACTIVO` sigue cobrando el importe
+  con el que se activó. Para cobrar el nuevo, el socio tiene que cancelarlo y volver a
+  activarlo. Uno `PENDIENTE` se reemplaza solo al apretar "Activar". Pendiente de definir
+  con el cliente.
+- **Vuelta desde Mercado Pago:** al perfil (`SITIO_URL/perfil`) cuando el sitio es https.
+  Mercado Pago rechaza una vuelta a `localhost` (`back_url` inválida, comprobado el
+  2026-11-03), así que en desarrollo el socio termina en su lista de suscripciones de
+  Mercado Pago y vuelve al sitio a mano. Como el estado lo actualiza el control, en
+  menos de dos minutos su perfil lo muestra `ACTIVO`.
+
 ### Disciplinas (implementado)
 
 Actividades del club. Reemplazan al menú "Fútbol" por **"Disciplinas"**, que despliega
@@ -668,6 +721,7 @@ los de una base existente, editarlos desde el panel (`PATCH /tipos-socio/:id`).
 - `cambios_password`: cuándo cambió su clave cada usuario y si fue voluntario (no guarda hashes). Sirve para el límite de 2 cada 30 días.
 - `enlaces_password`: enlaces **pendientes** para elegir contraseña (`usuario_id`, `token_hash` SHA-256 único, `tipo` = `BIENVENIDA` | `RECUPERACION`, `expira_en`). Usarlo lo borra.
 - `cobros_online`: cada intento de cobro por Mercado Pago (`referencia` única = `external_reference`, `tipo`, `estado`, `socio_id`, `meses`, `monto_mensual`, `total`, `preferencia_id`, `init_point`, `expira_en`, `mp_payment_id` único, `pago_id` → el `Pago` registrado, `solicitud_id` en un alta (queda nulo al resolverse), `detalle`). No es el registro contable: ese es `pagos`.
+- `debitos_automaticos`: débito automático de cada socio (`socio_id`, `estado` = `PENDIENTE` | `ACTIVO` | `PAUSADO` | `CANCELADO`, `plan_id` único, `init_point`, `suscripcion_id` único, `monto`, `cancelado_en`, `motivo_cancelacion`). A lo sumo uno no cancelado por socio.
 - `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, `origen` (`PANEL` | `MERCADO_PAGO`), quién registró (nulo solo en los cobros online), y datos de anulación).
 - `paginas`: secciones de contenido editable (`slug` único, `titulo`, `resumen`, `contenido` en Markdown, `publicada`).
 - `disciplinas`: actividades del menú (`slug` único, `orden`, `activa`). Lista plana, sin jerarquía.
