@@ -42,7 +42,7 @@ CDI/
 | Primer ingreso | `AuthUser.mustChangePassword === true` → frontend redirige a `/cambiar-password`; backend bloquea el resto de endpoints (código `PASSWORD_CHANGE_REQUIRED`). |
 | Cambio de clave | Forzado (HU-03): `{ newPassword, confirmPassword }`. Voluntario (HU-05): agrega `currentPassword`. Política: 8–72 caracteres, al menos una letra y un número. **Máximo 2 cambios voluntarios cada 30 días** (`PASSWORD_CHANGE_LIMIT`, 429); el forzado no cuenta. |
 | Roles | `ADMIN` \| `SOCIO` |
-| Socio | `nombre` y `apellido` separados; `dni` string (7–8 dígitos); fechas `YYYY-MM-DD`; `vigencia: { desde, hasta }` inclusive. |
+| Socio | `nombre` y `apellido` separados y **siempre en MAYÚSCULA** (el backend los normaliza al guardar, se escriban como se escriban; pedido del cliente, 2026-11-03); `dni` string (7–8 dígitos); fechas `YYYY-MM-DD`; `vigencia: { desde, hasta }` inclusive. |
 | Estado socio | `ALTA` \| `BAJA` (administrativo, persistido). Además soft delete (`deletedAt`). |
 | Carnet QR | `socios.codigoQr` (aleatorio, único, nulo hasta generarlo) y `carnetUrl` (`SITIO_URL/carnet/<codigo>`), que arma el backend. El escaneo es público |
 | Estado cuota | `AL_DIA` \| `PENDIENTE` — **calculado** por el backend comparando la vigencia con la fecha actual en `America/Argentina/Buenos_Aires`. No se persiste. Una **categoría sin cuota** (`montoCuota: null`, como Juvenil y Campeón) está **siempre `AL_DIA`**: su vigencia no se mira. |
