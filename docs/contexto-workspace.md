@@ -360,7 +360,9 @@ su pedido desaparece del listado del admin.
 | Método | Ruta | Acceso | Notas |
 |---|---|---|---|
 | POST | `/pagos` | ADMIN | Registra el cobro **y extiende la vigencia** en una transacción |
-| GET | `/pagos` | ADMIN | Filtros: `socioId`, `cuentaId`, `medioPago`, `desde`, `hasta`, `anulacion` |
+| GET | `/pagos` | ADMIN | Filtros: `socioId`, `cuentaId`, `medioPago`, `desde`, `hasta`, `anulacion`, `devolucion` (`pendientes` | `todas`) |
+| GET | `/pagos/devoluciones/pendientes/total` | ADMIN | `{ pendientes: n }`: devoluciones y contracargos sin revisar, para el indicador del panel |
+| PATCH | `/pagos/:id/revisar-devolucion` | ADMIN | La marca como vista: sale del indicador. Devuelve el `Pago`. `409` si el pago no tiene devolución |
 | GET | `/pagos/resumen` | ADMIN | Ingresos por mes, acumulado y desglose por medio y por cuenta |
 | GET | `/pagos/:id` | ADMIN | |
 | PATCH | `/pagos/:id/anular` | ADMIN | Motivo obligatorio. Devuelve `requiereRevisarVigencia` |
@@ -541,6 +543,45 @@ no coincide con una cuenta real (comprobado el 2026-11-03).
   2026-11-03), así que en desarrollo el socio termina en su lista de suscripciones de
   Mercado Pago y vuelve al sitio a mano. Como el estado lo actualiza el control, en
   menos de dos minutos su perfil lo muestra `ACTIVO`.
+
+### Devoluciones y contracargos (backend implementado)
+
+La plata de un cobro online puede volver al pagador de dos formas: el club la
+**devuelve desde su cuenta de Mercado Pago**, o el pagador **desconoce el pago ante su
+tarjeta** y el banco lo revierte (contracargo). El sistema no inicia ninguna de las dos:
+las **detecta** y las asienta en el `Pago` (decisiones del cliente, 2026-11-03). Desde
+el panel no se devuelve plata.
+
+| Caso | En Mercado Pago | Qué hace el sistema |
+|---|---|---|
+| `DEVOLUCION` | El pago pasa a `refunded` | **Anula el pago** ("Devuelto desde Mercado Pago") y, si es el último, le quita al socio el período que cubría |
+| `CONTRACARGO` | El pago pasa a `charged_back` | Igual que una devolución total |
+| `DEVOLUCION_PARCIAL` | Sigue `approved`, con un importe devuelto | **Solo lo informa**: el pago sigue vigente. Qué meses dejó de cubrir lo decide el admin |
+
+- **La vigencia se resta solo si ese pago es el último**: si es el que marca hasta
+  cuándo está al día el socio, la vigencia vuelve al día anterior a donde arrancaba el
+  pago. Si después hubo otros pagos, no se toca: adivinar cuál la sostiene llevaría a
+  errores. `devolucion.vigenciaRevertida` dice cuál de los dos pasó: si es `false`, la
+  vigencia hay que revisarla desde la ficha del socio.
+- **Indicador en el panel.** Cada devolución entra sin revisar y cuenta en
+  `GET /pagos/devoluciones/pendientes/total`. El admin las ve en
+  `GET /pagos?devolucion=pendientes&anulacion=todos`; hace falta `anulacion=todos`
+  porque una devolución total queda anulada, y los listados excluyen los anulados por
+  defecto. Las marca vistas con `PATCH /pagos/:id/revisar-devolucion`. Si una parcial se
+  completa después, vuelve a contar.
+- **Cada `Pago` trae `devolucion`**: `null`, o `{ tipo, montoDevuelto, detectadaEn,
+  vigenciaRevertida, revisadaEn }`. Llega también al historial del socio, que así ve
+  por qué se le anuló un cobro.
+- **Vale para los tres cobros online:** cuota, alta y débito automático. Un pago
+  devuelto antes de registrarse cuenta como no pagado.
+- **Una devolución de un pago que el admin ya había anulado** se asienta igual para
+  que la vea, pero no lo vuelve a anular ni toca la vigencia: eso ya lo decidió el admin.
+- **Cómo se detecta.** Por el aviso de Mercado Pago (webhook) y, sin depender de él, con
+  un **control de cada hora** que repasa los pagos que cambiaron en los últimos 3 días.
+  Ese control también registra un pago aprobado que se le haya escapado al de cada
+  minuto. Para correrlo en el momento: `npm run mp:revisar`. Es idempotente.
+- **Al socio dado de alta por un pago que después se devuelve no se lo da de baja
+  solo.** Queda con la cuota vencida y el admin lo ve en el indicador.
 
 ### Disciplinas (implementado)
 
@@ -725,7 +766,7 @@ los de una base existente, editarlos desde el panel (`PATCH /tipos-socio/:id`).
 - `enlaces_password`: enlaces **pendientes** para elegir contraseña (`usuario_id`, `token_hash` SHA-256 único, `tipo` = `BIENVENIDA` | `RECUPERACION`, `expira_en`). Usarlo lo borra.
 - `cobros_online`: cada intento de cobro por Mercado Pago (`referencia` única = `external_reference`, `tipo`, `estado`, `socio_id`, `meses`, `monto_mensual`, `total`, `preferencia_id`, `init_point`, `expira_en`, `mp_payment_id` único, `pago_id` → el `Pago` registrado, `solicitud_id` en un alta (queda nulo al resolverse), `detalle`). No es el registro contable: ese es `pagos`.
 - `debitos_automaticos`: débito automático de cada socio (`socio_id`, `estado` = `PENDIENTE` | `ACTIVO` | `PAUSADO` | `CANCELADO`, `plan_id` único, `init_point`, `suscripcion_id` único, `monto`, `cancelado_en`, `motivo_cancelacion`). A lo sumo uno no cancelado por socio.
-- `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, `origen` (`PANEL` | `MERCADO_PAGO`), quién registró (nulo solo en los cobros online), y datos de anulación).
+- `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, `origen` (`PANEL` | `MERCADO_PAGO`), quién registró (nulo solo en los cobros online), datos de anulación, y la devolución o contracargo detectado en Mercado Pago: `devolucion` = `DEVOLUCION` | `DEVOLUCION_PARCIAL` | `CONTRACARGO`, `monto_devuelto`, `devolucion_en`, `vigencia_revertida` y `devolucion_revisada_en`).
 - `paginas`: secciones de contenido editable (`slug` único, `titulo`, `resumen`, `contenido` en Markdown, `publicada`).
 - `disciplinas`: actividades del menú (`slug` único, `orden`, `activa`). Lista plana, sin jerarquía.
 - `solicitudes_socio`: postulaciones pendientes (datos del formulario + `foto_path` + `tipo_socio_id` + `estado` = `PENDIENTE_PAGO` | `REQUIERE_REVISION`, `vence_en`, `motivo_revision`). `dni` y `email` únicos. Se borra al darse el alta, al rechazarla o si el pago se rechaza o vence.
@@ -735,5 +776,5 @@ los de una base existente, editarlos desde el panel (`PATCH /tipos-socio/:id`).
 
 ## Comandos rápidos
 
-Backend (`cdi-backend/`): `npm run start:dev`, `npm test`, `npm run lint`, `npm run migration:generate -- src/database/migrations/<Nombre>`, `npm run migration:run`, `npm run seed`, `npm run seed:dev` (datos de prueba para el frontend; credenciales en el README del backend), `npm run avisos:enviar` (manda ya los avisos de cuota y saludos de cumpleaños del día; en desarrollo acepta una fecha para simular), `npm run mp:verificar` (comprueba las credenciales de Mercado Pago del `.env` sin mostrarlas).
+Backend (`cdi-backend/`): `npm run start:dev`, `npm test`, `npm run lint`, `npm run migration:generate -- src/database/migrations/<Nombre>`, `npm run migration:run`, `npm run seed`, `npm run seed:dev` (datos de prueba para el frontend; credenciales en el README del backend), `npm run avisos:enviar` (manda ya los avisos de cuota y saludos de cumpleaños del día; en desarrollo acepta una fecha para simular), `npm run mp:verificar` (comprueba las credenciales de Mercado Pago del `.env` sin mostrarlas), `npm run mp:revisar` (corre ya la revisión de cada hora de pagos de Mercado Pago: devoluciones, contracargos y aprobados que se hayan escapado).
 Frontend (`cdi-frontend/`): `npm run dev`, `npm run lint`, `npm run build`.

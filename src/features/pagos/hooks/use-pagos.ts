@@ -3,7 +3,9 @@
 import { useQuery } from "@tanstack/react-query";
 
 import {
+  contarDevolucionesPendientes,
   listarCuentas,
+  listarPagos,
   obtenerHistorialDeSocio,
   obtenerMisPagos,
   obtenerResumenCobranzas,
@@ -39,5 +41,32 @@ export function useCuentasActivas() {
     queryKey: ["cuentas", "activas"],
     queryFn: () => listarCuentas(true),
     staleTime: 5 * 60_000,
+  });
+}
+
+/** Indicador del panel: devoluciones y contracargos que falta revisar. */
+export function useDevolucionesPendientes() {
+  return useQuery({
+    queryKey: [...PAGOS_QUERY_KEY, "devoluciones", "total"],
+    queryFn: contarDevolucionesPendientes,
+  });
+}
+
+/**
+ * Pagos con devolución. Pide también los anulados: una devolución total o un
+ * contracargo dejan el pago anulado, y por defecto el listado no los trae.
+ */
+export function useDevoluciones(vista: "pendientes" | "todas") {
+  return useQuery({
+    queryKey: [...PAGOS_QUERY_KEY, "devoluciones", vista],
+    queryFn: () =>
+      listarPagos({
+        page: 1,
+        pageSize: 50,
+        devolucion: vista,
+        anulacion: "todos",
+        sortBy: "fechaPago",
+        sortOrder: "desc",
+      }),
   });
 }

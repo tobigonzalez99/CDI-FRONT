@@ -99,8 +99,40 @@ export interface Pago {
   createdAt: ISODateString;
   anulado: boolean;
   anuladoEn: ISODateString | null;
+  /** `null` cuando lo anuló el sistema (por ejemplo, una devolución). */
   anuladoPor: string | null;
   motivoAnulacion: string | null;
+  /** Solo en cobros online: si se devolvió desde Mercado Pago o tuvo un contracargo. */
+  devolucion: DevolucionPago | null;
+}
+
+/**
+ * - `DEVOLUCION`: se devolvió completo; el pago queda anulado.
+ * - `DEVOLUCION_PARCIAL`: se devolvió una parte; el pago sigue vigente.
+ * - `CONTRACARGO`: el pagador lo desconoció ante su tarjeta; queda anulado.
+ */
+export const TIPOS_DEVOLUCION = ["DEVOLUCION", "DEVOLUCION_PARCIAL", "CONTRACARGO"] as const;
+export type TipoDevolucion = (typeof TIPOS_DEVOLUCION)[number];
+
+export const ETIQUETAS_DEVOLUCION: Record<TipoDevolucion, string> = {
+  DEVOLUCION: "Devolución",
+  DEVOLUCION_PARCIAL: "Devolución parcial",
+  CONTRACARGO: "Contracargo",
+};
+
+/**
+ * Lo detecta el backend solo: el panel no devuelve plata. Una devolución
+ * total o un contracargo anulan el pago y, si era el último del socio, le
+ * quitan ese período (`vigenciaRevertida`).
+ */
+export interface DevolucionPago {
+  tipo: TipoDevolucion;
+  montoDevuelto: number;
+  /** Fecha y hora en que se detectó. */
+  detectadaEn: ISODateString;
+  vigenciaRevertida: boolean;
+  /** Cuándo la marcó como vista el administrador; `null` si falta. */
+  revisadaEn: ISODateString | null;
 }
 
 /**
@@ -142,6 +174,11 @@ export interface PagoFilters extends PaginationParams {
   hasta?: ISODateString;
   /** Por defecto "vigentes": los anulados quedan fuera. */
   anulacion?: VistaAnulacion;
+  /**
+   * Solo los que tuvieron devolución: las que falta revisar o todas. Va con
+   * `anulacion: "todos"`, porque una devolución total deja el pago anulado.
+   */
+  devolucion?: "pendientes" | "todas";
   sortBy?: "fechaPago" | "monto" | "createdAt";
   sortOrder?: "asc" | "desc";
 }

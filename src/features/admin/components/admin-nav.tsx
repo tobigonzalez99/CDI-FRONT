@@ -6,10 +6,12 @@ import {
   ChartColumn,
   LayoutDashboard,
   Receipt,
+  Undo2,
   UserMinus,
   Users,
 } from "lucide-react";
 
+import { useDevolucionesPendientes } from "@/features/pagos/hooks/use-pagos";
 import { useBajasPendientes } from "@/features/solicitudes/hooks/use-bajas";
 import { useSolicitudesPendientes } from "@/features/solicitudes/hooks/use-solicitudes";
 import { cn } from "@/lib/utils";
@@ -20,6 +22,7 @@ const SECCIONES = [
   { href: "/admin/socios", label: "Socios", Icon: Users },
   { href: "/admin/cobranzas", label: "Cobranzas", Icon: ChartColumn },
   { href: "/admin/cobros", label: "Registrar cobro", Icon: Receipt },
+  { href: "/admin/devoluciones", label: "Devoluciones", Icon: Undo2 },
 ] as const;
 
 /** Cuántos pedidos esperan respuesta, al lado del nombre de la sección. */
@@ -40,10 +43,12 @@ export function AdminNav() {
   const pathname = usePathname();
   const { data: altas } = useSolicitudesPendientes();
   const { data: bajas } = useBajasPendientes();
+  const { data: devoluciones } = useDevolucionesPendientes();
 
   const pendientesPorRuta: Record<string, number | undefined> = {
     "/admin": altas,
     "/admin/bajas": bajas,
+    "/admin/devoluciones": devoluciones,
   };
 
   return (

@@ -1,8 +1,8 @@
-import { Ban, Receipt } from "lucide-react";
+import { Ban, Receipt, Undo2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { formatearFechaCorta, formatearMonto, formatearVigencia } from "@/lib/formato";
-import { ETIQUETAS_MEDIO_PAGO, type Pago } from "@/types/pago";
+import { ETIQUETAS_DEVOLUCION, ETIQUETAS_MEDIO_PAGO, type Pago } from "@/types/pago";
 
 function Dato({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {
   return (
@@ -45,6 +45,13 @@ function FilaPago({ pago, mostrarSocio }: { pago: Pago; mostrarSocio?: boolean }
               Anulado
             </span>
           )}
+
+          {pago.devolucion && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
+              <Undo2 className="size-3" aria-hidden />
+              {ETIQUETAS_DEVOLUCION[pago.devolucion.tipo]}
+            </span>
+          )}
         </div>
 
         <span className="text-sm text-muted-foreground">
@@ -73,9 +80,19 @@ function FilaPago({ pago, mostrarSocio }: { pago: Pago; mostrarSocio?: boolean }
           {pago.anuladoEn && (
             <span className="block text-xs">
               Anulado el {formatearFechaCorta(pago.anuladoEn.slice(0, 10))}
-              {pago.anuladoPor && ` por ${pago.anuladoPor}`}.
+              {/* Sin `anuladoPor` lo anuló el sistema, por ejemplo una devolución. */}
+              {pago.anuladoPor ? ` por ${pago.anuladoPor}` : " automáticamente"}.
             </span>
           )}
+        </p>
+      )}
+
+      {/* La parcial no anula el pago: se informa cuánto se devolvió. */}
+      {pago.devolucion?.tipo === "DEVOLUCION_PARCIAL" && (
+        <p className="mt-4 border-t border-dashed pt-3 text-sm text-muted-foreground">
+          Se devolvieron {formatearMonto(pago.devolucion.montoDevuelto)} de este pago desde
+          Mercado Pago el{" "}
+          {formatearFechaCorta(pago.devolucion.detectadaEn.slice(0, 10))}.
         </p>
       )}
     </li>

@@ -92,3 +92,15 @@ export async function listarCuentas(soloActivas = true): Promise<Cuenta[]> {
   });
   return data;
 }
+
+/** Cuántas devoluciones o contracargos falta revisar, para el indicador del panel. */
+export async function contarDevolucionesPendientes(): Promise<number> {
+  const { data } = await api.get<{ pendientes: number }>("/pagos/devoluciones/pendientes/total");
+  return data.pendientes;
+}
+
+/** Marca la devolución como vista: sale del indicador. No cambia el pago. */
+export async function revisarDevolucion(id: string): Promise<Pago> {
+  const { data } = await api.patch<Pago>(`/pagos/${id}/revisar-devolucion`);
+  return data;
+}

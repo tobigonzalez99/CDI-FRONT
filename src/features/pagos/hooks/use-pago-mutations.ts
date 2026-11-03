@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { anularPago, registrarPago } from "@/features/pagos/api/pagos.api";
+import { anularPago, registrarPago, revisarDevolucion } from "@/features/pagos/api/pagos.api";
 import { PAGOS_QUERY_KEY } from "@/features/pagos/hooks/use-pagos";
 import { SOCIOS_QUERY_KEY } from "@/features/admin/hooks/use-socios";
 import type { AnularPagoInput } from "@/types/pago";
@@ -31,6 +31,18 @@ export function useAnularPago() {
       anularPago(id, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: PAGOS_QUERY_KEY });
+    },
+  });
+}
+
+/** Marcar como vista solo cambia el indicador y las listas de devoluciones. */
+export function useRevisarDevolucion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: revisarDevolucion,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...PAGOS_QUERY_KEY, "devoluciones"] });
     },
   });
 }
