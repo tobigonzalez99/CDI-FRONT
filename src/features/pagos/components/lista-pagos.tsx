@@ -20,7 +20,15 @@ function Dato({ etiqueta, children }: { etiqueta: string; children: React.ReactN
  * motivo. El movimiento existió, y para el socio es la diferencia entre "no me
  * registraron el pago" y "me lo registraron y después lo dieron de baja".
  */
-function FilaPago({ pago, mostrarSocio }: { pago: Pago; mostrarSocio?: boolean }) {
+function FilaPago({
+  pago,
+  mostrarSocio,
+  accion,
+}: {
+  pago: Pago;
+  mostrarSocio?: boolean;
+  accion?: React.ReactNode;
+}) {
   return (
     <li
       className={cn(
@@ -54,9 +62,12 @@ function FilaPago({ pago, mostrarSocio }: { pago: Pago; mostrarSocio?: boolean }
           )}
         </div>
 
-        <span className="text-sm text-muted-foreground">
-          {formatearFechaCorta(pago.fechaPago)}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">
+            {formatearFechaCorta(pago.fechaPago)}
+          </span>
+          {accion}
+        </div>
       </div>
 
       <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -104,12 +115,18 @@ interface ListaPagosProps {
   /** En el panel de administración interesa saber de quién es cada cobro. */
   mostrarSocio?: boolean;
   mensajeVacio?: string;
+  /**
+   * Un botón por pago, para el panel. La misma lista la ve el socio en su
+   * perfil, donde no lleva ninguno: por eso la acción viene de afuera.
+   */
+  accionDePago?: (pago: Pago) => React.ReactNode;
 }
 
 export function ListaPagos({
   pagos,
   mostrarSocio = false,
   mensajeVacio = "Todavía no hay pagos registrados.",
+  accionDePago,
 }: ListaPagosProps) {
   if (pagos.length === 0) {
     return (
@@ -123,7 +140,12 @@ export function ListaPagos({
   return (
     <ul className="space-y-3">
       {pagos.map((pago) => (
-        <FilaPago key={pago.id} pago={pago} mostrarSocio={mostrarSocio} />
+        <FilaPago
+          key={pago.id}
+          pago={pago}
+          mostrarSocio={mostrarSocio}
+          accion={accionDePago?.(pago)}
+        />
       ))}
     </ul>
   );

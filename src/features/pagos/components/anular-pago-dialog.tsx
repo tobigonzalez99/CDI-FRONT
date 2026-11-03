@@ -3,7 +3,7 @@
 import { useId } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoaderCircle } from "lucide-react";
+import { Info, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -25,9 +25,12 @@ import type { Pago } from "@/types/pago";
 export function AnularPagoDialog({
   pago,
   onClose,
+  onVerFicha,
 }: {
   pago: Pago | null;
   onClose: () => void;
+  /** Para ir a la ficha desde el aviso de revisar la vigencia. */
+  onVerFicha?: (socioId: string) => void;
 }) {
   const motivoId = useId();
   const { mutateAsync: anular, isPending } = useAnularPago();
@@ -60,10 +63,14 @@ export function AnularPagoDialog({
        * desde la ficha del socio.
        */
       if (resultado.requiereRevisarVigencia) {
+        const socioId = pago.socio.id;
         toast.warning("Revisá la vigencia del socio", {
           description:
             "La vigencia se apoyaba en este cobro. Anularlo no la revierte: ajustala desde la ficha del socio.",
-          duration: 10_000,
+          duration: 15_000,
+          action: onVerFicha
+            ? { label: "Abrir la ficha", onClick: () => onVerFicha(socioId) }
+            : undefined,
         });
       } else {
         toast.success("Pago anulado");
@@ -94,6 +101,14 @@ export function AnularPagoDialog({
             )}
           </DialogDescription>
         </DialogHeader>
+
+        {pago?.medioPago === "MERCADO_PAGO" && (
+          <p className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
+            Es un cobro online. Anularlo no le devuelve la plata al socio: eso se hace
+            desde Mercado Pago.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid gap-4">
           <div className="grid gap-2">

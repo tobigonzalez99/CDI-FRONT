@@ -14,15 +14,25 @@ interface SelectorSocioProps {
   socio: Socio | null;
   onSeleccionar: (socio: Socio | null) => void;
   error?: string;
+  /**
+   * Por defecto solo los activos, que son a quienes se les cobra. Para anular
+   * hacen falta todos: un socio de baja puede tener un cobro mal cargado.
+   */
+  incluirBajas?: boolean;
 }
 
 /**
- * Buscador de socios para el cobro.
+ * Buscador de socios, para cobrar o para anular un cobro.
  *
  * Es búsqueda y no un desplegable con todo el padrón: la lista crece sin
  * techo y nadie encuentra a alguien recorriendo cientos de nombres.
  */
-export function SelectorSocio({ socio, onSeleccionar, error }: SelectorSocioProps) {
+export function SelectorSocio({
+  socio,
+  onSeleccionar,
+  error,
+  incluirBajas = false,
+}: SelectorSocioProps) {
   const [texto, setTexto] = useState("");
   const buscarId = useId();
   const busqueda = useDebounce(texto);
@@ -31,7 +41,7 @@ export function SelectorSocio({ socio, onSeleccionar, error }: SelectorSocioProp
     page: 1,
     pageSize: 8,
     search: busqueda || undefined,
-    estado: "ALTA",
+    estado: incluirBajas ? undefined : "ALTA",
     sortBy: "apellido",
     sortOrder: "asc",
   });
@@ -100,7 +110,9 @@ export function SelectorSocio({ socio, onSeleccionar, error }: SelectorSocioProp
         <ul className="max-h-60 overflow-y-auto rounded-lg border">
           {data.data.length === 0 ? (
             <li className="p-3 text-sm text-muted-foreground">
-              Ningún socio activo coincide con la búsqueda.
+              {incluirBajas
+                ? "Ningún socio coincide con la búsqueda."
+                : "Ningún socio activo coincide con la búsqueda."}
             </li>
           ) : (
             data.data.map((candidato) => (
@@ -116,6 +128,7 @@ export function SelectorSocio({ socio, onSeleccionar, error }: SelectorSocioProp
                     </span>
                     <span className="block text-xs text-muted-foreground">
                       N° {candidato.numeroSocio} · DNI {candidato.dni}
+                      {candidato.estado === "BAJA" && " · Dado de baja"}
                     </span>
                   </span>
                   <Check className="size-4 shrink-0 text-muted-foreground" aria-hidden />

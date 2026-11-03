@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
+import { AnularCobros } from "@/features/pagos/components/anular-cobros";
 import { FormularioCobro } from "@/features/pagos/components/formulario-cobro";
-import { PagosRecientes } from "@/features/pagos/components/pagos-recientes";
 
 export const metadata: Metadata = { title: "Registrar cobro" };
 
@@ -11,12 +11,12 @@ export default function AdminCobrosPage() {
       <div>
         <h1 className="font-heading text-2xl font-bold">Cobros</h1>
         <p className="text-sm text-muted-foreground">
-          Registrá el pago de una cuota y consultá los últimos movimientos.
+          Registrá el pago de una cuota o anulá un cobro mal cargado.
         </p>
       </div>
 
       <FormularioCobro />
-      <PagosRecientes />
+      <AnularCobros />
     </div>
   );
 }
