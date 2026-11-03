@@ -41,9 +41,8 @@ interface DatosCarnetProps {
 /**
  * La zona blanca del dorso: foto, nombre, apellido, categoría, QR y leyenda.
  *
- * Es lo único del carnet que cambia de un socio a otro, así que es lo que se
- * manda a la imprenta para cada carnet físico. La usan la tarjeta en pantalla
- * y esa descarga, para que las dos sean siempre iguales.
+ * El archivo para la imprenta no sale de acá: lo dibuja
+ * `generarDorsoParaImprenta` con las medidas exactas del dorso original.
  *
  * Las medidas van en `cqw` del **ancho de la tarjeta entera**: quien la use
  * tiene que ponerla dentro de un `@container` de ese ancho.

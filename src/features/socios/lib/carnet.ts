@@ -56,12 +56,11 @@ const MARGEN_MODULOS = 4;
  * Lado del archivo que se manda a la imprenta, en milímetros, **margen
  * incluido**.
  *
- * Sale de las proporciones del carnet del club: el QR ocupa el 18,6 % del
- * ancho de la tarjeta, que en una tarjeta estándar (85,6 mm) son casi 16 mm.
- * Con los cuatro módulos de margen el archivo completo queda en 20 mm, y el
- * código adentro conserva esos 16 mm.
+ * Sale del dorso original del club, un carnet de 90 × 50 mm: el QR mide
+ * 311 px a 562 dpi, unos 14 mm. Con los cuatro módulos de margen el archivo
+ * completo queda en 18 mm, y el código adentro conserva esos 14 mm.
  */
-export const MM_QR_IMPRENTA = 20;
+export const MM_QR_IMPRENTA = 18;
 
 /**
  * Arma el archivo del QR para mandar a imprimir, a partir del que ya está
@@ -99,29 +98,6 @@ export function svgDeQrParaImprenta(origen: SVGSVGElement): string {
   ].join("");
 }
 
-/**
- * Ancho del carnet físico, en milímetros: el de una tarjeta estándar (CR80).
- * Es la misma medida de la que sale `MM_QR_IMPRENTA`.
- */
-export const MM_ANCHO_CARNET_FISICO = 85.6;
-
-/**
- * Alto de la zona blanca del dorso, en milímetros.
- *
- * El diseño del club mide 1993 × 1107, y la banda de arriba se lleva el 32 %
- * del alto: los datos ocupan el 68 % restante.
- */
-export const MM_ALTO_DATOS_CARNET =
-  Math.round(((MM_ANCHO_CARNET_FISICO * 1107) / 1993) * 0.68 * 10) / 10;
-
-/** Resolución de la imagen para la imprenta: 600 dpi deja el QR con bordes nítidos. */
-export const DPI_IMPRENTA = 600;
-
-/** Ancho en píxeles de la imagen para la imprenta, a `DPI_IMPRENTA`. */
-export const PX_ANCHO_CARNET_FISICO = Math.round(
-  (MM_ANCHO_CARNET_FISICO / 25.4) * DPI_IMPRENTA,
-);
-
 const TABLA_CRC = Array.from({ length: 256 }, (_, n) => {
   let c = n;
   for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
@@ -141,8 +117,8 @@ function crc32(bytes: Uint8Array): number {
  * aparece de casi medio metro: con la resolución anotada entra directo con
  * su tamaño real en milímetros, y el QR con el suyo.
  */
-export async function pngConResolucion(dataUrl: string, dpi: number): Promise<Blob> {
-  const original = new Uint8Array(await (await fetch(dataUrl)).arrayBuffer());
+export async function pngConResolucion(png: Blob, dpi: number): Promise<Blob> {
+  const original = new Uint8Array(await png.arrayBuffer());
 
   const puntosPorMetro = Math.round(dpi / 0.0254);
   const bloque = new Uint8Array(4 + 4 + 9 + 4);
