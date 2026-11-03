@@ -529,10 +529,13 @@ no coincide con una cuenta real (comprobado el 2026-11-03).
   cuota no puede activarlo (`VALIDATION_ERROR` en `debito`).
 - **Pagar a mano sigue valiendo.** Un socio con débito puede pagar meses por adelantado
   desde el perfil o en el club: la vigencia se suma.
-- **Si cambia la cuota de la categoría,** un débito `ACTIVO` sigue cobrando el importe
-  con el que se activó. Para cobrar el nuevo, el socio tiene que cancelarlo y volver a
-  activarlo. Uno `PENDIENTE` se reemplaza solo al apretar "Activar". Pendiente de definir
-  con el cliente.
+- **Si cambia la cuota de la categoría, el débito se actualiza solo** (decisión del
+  cliente, 2026-11-03). El control de cada dos minutos le cambia el monto a la
+  suscripción en Mercado Pago, sin que el socio tenga que volver a autorizarla, y lo
+  mismo si al socio lo pasan a otra categoría. El cobro siguiente ya sale con el
+  importe nuevo. Si lo pasan a una **categoría sin cuota**, el débito se cancela. Uno
+  `PENDIENTE` se reemplaza al apretar "Activar"; si se suscribe con el plan viejo, el
+  control le corrige el monto apenas lo asocia.
 - **Vuelta desde Mercado Pago:** al perfil (`SITIO_URL/perfil`) cuando el sitio es https.
   Mercado Pago rechaza una vuelta a `localhost` (`back_url` inválida, comprobado el
   2026-11-03), así que en desarrollo el socio termina en su lista de suscripciones de
