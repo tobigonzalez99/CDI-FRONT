@@ -20,6 +20,7 @@ import {
 import { SocioDetalleDialog } from "@/features/admin/components/socio-detalle-dialog";
 import { useSocios } from "@/features/admin/hooks/use-socios";
 import { useDebounce } from "@/hooks/use-debounce";
+import { BotonDescargarCarnetFisico } from "@/features/socios/components/boton-descargar-carnet-fisico";
 import { EstadoCuotaBadge } from "@/features/socios/components/estado-cuota-badge";
 import { textoVigencia } from "@/features/socios/lib/cuota";
 import { cn } from "@/lib/utils";
@@ -89,6 +90,7 @@ export function PadronSocios() {
                   <TableHead>Vigencia</TableHead>
                   <TableHead>Cuota</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead className="text-center">Carnet físico</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -137,6 +139,9 @@ export function PadronSocios() {
                       >
                         {socio.estado === "ALTA" ? "Activo" : "Baja"}
                       </span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <BotonDescargarCarnetFisico socio={socio} />
                     </TableCell>
                   </TableRow>
                 ))}
