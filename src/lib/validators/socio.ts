@@ -14,12 +14,20 @@ import { z } from "zod";
 const HOY = () => new Date().toISOString().slice(0, 10);
 
 export const datosPersonalesSchema = z.object({
-  nombre: z.string().trim().min(2, "Ingresá el nombre").max(60, "El nombre es muy largo"),
+  // En mayúscula siempre, se escriban como se escriban: así quedan parejos en
+  // el padrón y en el carnet. El backend también lo normaliza al guardar.
+  nombre: z
+    .string()
+    .trim()
+    .min(2, "Ingresá el nombre")
+    .max(60, "El nombre es muy largo")
+    .toUpperCase(),
   apellido: z
     .string()
     .trim()
     .min(2, "Ingresá el apellido")
-    .max(60, "El apellido es muy largo"),
+    .max(60, "El apellido es muy largo")
+    .toUpperCase(),
   dni: z
     .string()
     .trim()

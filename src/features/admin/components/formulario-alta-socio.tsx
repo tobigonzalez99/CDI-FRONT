@@ -356,6 +356,7 @@ export function FormularioAltaSocio() {
                 id={ids.nombre}
                 autoComplete="off"
                 aria-invalid={Boolean(errors.nombre)}
+                className="uppercase"
                 {...register("nombre")}
               />
             </Campo>
@@ -365,6 +366,7 @@ export function FormularioAltaSocio() {
                 id={ids.apellido}
                 autoComplete="off"
                 aria-invalid={Boolean(errors.apellido)}
+                className="uppercase"
                 {...register("apellido")}
               />
             </Campo>

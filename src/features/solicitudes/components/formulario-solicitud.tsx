@@ -193,6 +193,7 @@ export function FormularioSolicitud() {
             id={ids.nombre}
             autoComplete="given-name"
             aria-invalid={Boolean(errors.nombre)}
+            className="uppercase"
             {...register("nombre")}
           />
         </Campo>
@@ -202,6 +203,7 @@ export function FormularioSolicitud() {
             id={ids.apellido}
             autoComplete="family-name"
             aria-invalid={Boolean(errors.apellido)}
+            className="uppercase"
             {...register("apellido")}
           />
         </Campo>

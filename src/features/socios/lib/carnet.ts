@@ -98,3 +98,76 @@ export function svgDeQrParaImprenta(origen: SVGSVGElement): string {
     `</g></svg>`,
   ].join("");
 }
+
+/**
+ * Ancho del carnet físico, en milímetros: el de una tarjeta estándar (CR80).
+ * Es la misma medida de la que sale `MM_QR_IMPRENTA`.
+ */
+export const MM_ANCHO_CARNET_FISICO = 85.6;
+
+/**
+ * Alto de la zona blanca del dorso, en milímetros.
+ *
+ * El diseño del club mide 1993 × 1107, y la banda de arriba se lleva el 32 %
+ * del alto: los datos ocupan el 68 % restante.
+ */
+export const MM_ALTO_DATOS_CARNET =
+  Math.round(((MM_ANCHO_CARNET_FISICO * 1107) / 1993) * 0.68 * 10) / 10;
+
+/** Resolución de la imagen para la imprenta: 600 dpi deja el QR con bordes nítidos. */
+export const DPI_IMPRENTA = 600;
+
+/** Ancho en píxeles de la imagen para la imprenta, a `DPI_IMPRENTA`. */
+export const PX_ANCHO_CARNET_FISICO = Math.round(
+  (MM_ANCHO_CARNET_FISICO / 25.4) * DPI_IMPRENTA,
+);
+
+const TABLA_CRC = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+
+function crc32(bytes: Uint8Array): number {
+  let c = 0xffffffff;
+  for (const byte of bytes) c = TABLA_CRC[(c ^ byte) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/**
+ * Le anota a un PNG su resolución (el bloque `pHYs`).
+ *
+ * Sin eso, el programa de la imprenta lo abre a 72 o 96 dpi y la imagen
+ * aparece de casi medio metro: con la resolución anotada entra directo con
+ * su tamaño real en milímetros, y el QR con el suyo.
+ */
+export async function pngConResolucion(dataUrl: string, dpi: number): Promise<Blob> {
+  const original = new Uint8Array(await (await fetch(dataUrl)).arrayBuffer());
+
+  const puntosPorMetro = Math.round(dpi / 0.0254);
+  const bloque = new Uint8Array(4 + 4 + 9 + 4);
+  const vista = new DataView(bloque.buffer);
+  vista.setUint32(0, 9);
+  bloque.set([0x70, 0x48, 0x59, 0x73], 4); // "pHYs"
+  vista.setUint32(8, puntosPorMetro);
+  vista.setUint32(12, puntosPorMetro);
+  bloque[16] = 1; // la unidad es el metro
+  vista.setUint32(17, crc32(bloque.subarray(4, 17)));
+
+  // Va justo después del encabezado: firma (8 bytes) + IHDR (25 bytes).
+  const FIN_IHDR = 33;
+  return new Blob(
+    [original.subarray(0, FIN_IHDR), bloque, original.subarray(FIN_IHDR)],
+    { type: "image/png" },
+  );
+}
+
+/**
+ * Tipografía de las imágenes que se descargan.
+ *
+ * La del sitio termina en "Geist Fallback", una fuente definida con
+ * `local(Arial)` que dentro de la imagen exportada no existe: sin un respaldo
+ * genérico el navegador cae en Times. Con Arial y sans-serif detrás, si la
+ * fuente del sitio no llega a incrustarse, sale igual en una de palo seco.
+ */
+export const FUENTE_DESCARGA = "var(--font-geist-sans), Arial, Helvetica, sans-serif";

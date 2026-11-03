@@ -11,6 +11,10 @@ import {
 import { Cargando, ErrorConsulta } from "@/components/shared/estado-consulta";
 import { BotonDescargarCarnet } from "@/features/socios/components/boton-descargar-carnet";
 import {
+  AYUDA_CARNET_FISICO,
+  BotonDescargarCarnetFisico,
+} from "@/features/socios/components/boton-descargar-carnet-fisico";
+import {
   AYUDA_QR_IMPRENTA,
   BotonDescargarQr,
 } from "@/features/socios/components/boton-descargar-qr";
@@ -125,14 +129,21 @@ export function SocioDetalleDialog({ socioId, onOpenChange }: SocioDetalleDialog
                   etiqueta="Carnet para el celular"
                   size="sm"
                 />
+                <BotonDescargarCarnetFisico socio={socio} size="sm" />
                 <BotonDescargarQr socio={socio} size="sm" />
               </div>
 
-              <p className="text-xs text-muted-foreground">
-                {socio.codigoQr
-                  ? AYUDA_QR_IMPRENTA
-                  : "Todavía no tiene código de carnet: generalo con «Generar los que falten», arriba del padrón."}
-              </p>
+              {socio.codigoQr ? (
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p>{AYUDA_CARNET_FISICO}</p>
+                  <p>«QR para imprenta»: {AYUDA_QR_IMPRENTA}</p>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Todavía no tiene código de carnet: generalo con «Generar los que falten»,
+                  arriba del padrón.
+                </p>
+              )}
             </div>
 
             <BloqueDatosPersonales socio={socio} />

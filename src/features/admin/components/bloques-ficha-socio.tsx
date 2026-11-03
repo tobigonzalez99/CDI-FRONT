@@ -167,6 +167,7 @@ export function BloqueDatosPersonales({ socio }: { socio: Socio }) {
                 id={nombreId}
                 aria-invalid={Boolean(errors.nombre)}
                 aria-describedby={descripcionDe(nombreId, Boolean(errors.nombre))}
+                className="uppercase"
                 {...register("nombre")}
               />
             </Campo>
@@ -176,6 +177,7 @@ export function BloqueDatosPersonales({ socio }: { socio: Socio }) {
                 id={apellidoId}
                 aria-invalid={Boolean(errors.apellido)}
                 aria-describedby={descripcionDe(apellidoId, Boolean(errors.apellido))}
+                className="uppercase"
                 {...register("apellido")}
               />
             </Campo>

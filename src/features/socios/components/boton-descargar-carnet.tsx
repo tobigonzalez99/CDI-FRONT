@@ -10,7 +10,7 @@ import {
   ANCHO_CARNET,
   CarnetCelular,
 } from "@/features/socios/components/carnet-celular";
-import { nombreDeArchivo } from "@/features/socios/lib/carnet";
+import { FUENTE_DESCARGA, nombreDeArchivo } from "@/features/socios/lib/carnet";
 import type { CarnetSocio } from "@/types/socio";
 
 interface BotonDescargarCarnetProps {
@@ -113,7 +113,7 @@ export function BotonDescargarCarnet({
         style={{ zIndex: -1 }}
       >
         {/* El ancho fijo es el de diseño: la imagen sale al doble de esto. */}
-        <div ref={tarjeta} style={{ width: ANCHO_CARNET }}>
+        <div ref={tarjeta} style={{ width: ANCHO_CARNET, fontFamily: FUENTE_DESCARGA }}>
           <CarnetCelular socio={socio} carnetUrl={carnetUrl} />
         </div>
       </div>

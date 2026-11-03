@@ -6,12 +6,19 @@ import { z } from "zod";
  * aparte porque es un archivo y no pasa por react-hook-form.
  */
 export const solicitudSchema = z.object({
-  nombre: z.string().trim().min(2, "Ingresá tu nombre").max(60, "El nombre es muy largo"),
+  // En mayúscula siempre, como quedan guardados en el padrón.
+  nombre: z
+    .string()
+    .trim()
+    .min(2, "Ingresá tu nombre")
+    .max(60, "El nombre es muy largo")
+    .toUpperCase(),
   apellido: z
     .string()
     .trim()
     .min(2, "Ingresá tu apellido")
-    .max(60, "El apellido es muy largo"),
+    .max(60, "El apellido es muy largo")
+    .toUpperCase(),
   dni: z
     .string()
     .trim()
