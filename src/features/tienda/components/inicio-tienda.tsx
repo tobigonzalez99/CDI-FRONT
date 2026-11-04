@@ -125,23 +125,7 @@ export function InicioTienda() {
     <div className="space-y-16 pb-16">
       <Banner />
 
-      {/* Lo que conviene saber antes de comprar, en una línea. */}
-      <section className="container mx-auto -mt-8 px-4">
-        <ul className="grid gap-3 rounded-2xl border bg-background p-4 text-sm sm:grid-cols-3">
-          <li className="flex items-center gap-3">
-            <Store className="size-5 shrink-0 text-brand-red" aria-hidden />
-            Retirás en {configuracion?.retiroLugar || "el club"}
-          </li>
-          <li className="flex items-center gap-3">
-            <CreditCard className="size-5 shrink-0 text-brand-red" aria-hidden />
-            Pagás con Mercado Pago
-          </li>
-          <li className="flex items-center gap-3">
-            <Receipt className="size-5 shrink-0 text-brand-red" aria-hidden />
-            Precios finales, con impuestos
-          </li>
-        </ul>
-      </section>
+      <AvisoSocio />
 
       {categorias.length > 0 && (
         <section className="container mx-auto px-4">
@@ -172,7 +156,23 @@ export function InicioTienda() {
 
       <Seccion titulo="Destacados" filtros={{ destacados: true, pageSize: 4 }} href="/tienda/productos" />
 
-      <AvisoSocio />
+      {/* Lo que conviene saber antes de comprar, en una línea. */}
+      <section className="container mx-auto px-4">
+        <ul className="grid gap-3 rounded-2xl border bg-background p-4 text-sm sm:grid-cols-3">
+          <li className="flex items-center gap-3">
+            <Store className="size-5 shrink-0 text-brand-red" aria-hidden />
+            Retirás en {configuracion?.retiroLugar || "el club"}
+          </li>
+          <li className="flex items-center gap-3">
+            <CreditCard className="size-5 shrink-0 text-brand-red" aria-hidden />
+            Pagás con Mercado Pago
+          </li>
+          <li className="flex items-center gap-3">
+            <Receipt className="size-5 shrink-0 text-brand-red" aria-hidden />
+            Precios finales, con impuestos
+          </li>
+        </ul>
+      </section>
 
       <Seccion
         titulo="Novedades"
