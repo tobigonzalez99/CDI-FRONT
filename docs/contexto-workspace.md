@@ -41,7 +41,7 @@ CDI/
 | Auth | `POST /auth/login` con `{ dni, password }`. El JWT viaja en **cookie httpOnly** (`cdi_access_token`); la respuesta es `{ user: AuthUser, expiresAt }`. CORS con `credentials: true` → el frontend usa `withCredentials`. |
 | Primer ingreso | `AuthUser.mustChangePassword === true` → frontend redirige a `/cambiar-password`; backend bloquea el resto de endpoints (código `PASSWORD_CHANGE_REQUIRED`). |
 | Cambio de clave | Forzado (HU-03): `{ newPassword, confirmPassword }`. Voluntario (HU-05): agrega `currentPassword`. Política: 8–72 caracteres, al menos una letra y un número. **Máximo 2 cambios voluntarios cada 30 días** (`PASSWORD_CHANGE_LIMIT`, 429); el forzado no cuenta. |
-| Roles | `ADMIN` \| `SOCIO` |
+| Roles | `ADMIN` \| `SOCIO` \| `TIENDA` (opera solo la tienda: no ve socios ni cuotas) |
 | Socio | `nombre` y `apellido` separados y **siempre en MAYÚSCULA** (el backend los normaliza al guardar, se escriban como se escriban; pedido del cliente, 2026-11-03); `dni` string (7–8 dígitos); fechas `YYYY-MM-DD`; `vigencia: { desde, hasta }` inclusive. |
 | Estado socio | `ALTA` \| `BAJA` (administrativo, persistido). Además soft delete (`deletedAt`). |
 | Carnet QR | `socios.codigoQr` (aleatorio, único, nulo hasta generarlo) y `carnetUrl` (`SITIO_URL/carnet/<codigo>`), que arma el backend. El escaneo es público |
@@ -538,6 +538,17 @@ no coincide con una cuenta real (comprobado el 2026-11-03).
   importe nuevo. Si lo pasan a una **categoría sin cuota**, el débito se cancela. Uno
   `PENDIENTE` se reemplaza al apretar "Activar"; si se suscribe con el plan viejo, el
   control le corrige el monto apenas lo asocia.
+- **Avisos por correo** (pedido del cliente, 2026-11-03), para que nadie se entere de un
+  problema con el débito recién cuando le vence la cuota:
+
+  | Correo | Cuándo |
+  |---|---|
+  | "No pudimos cobrar tu cuota con débito automático" | Mercado Pago rechazó un cobro mensual. **Uno por cobro**, aunque Mercado Pago lo reintente (se asienta en `avisos_enviados` como `DEBITO_RECHAZADO`, con la fecha del cobro). Solo rechazos de la última semana: al ponerlo en marcha no salen avisos viejos |
+  | "Se canceló tu débito automático" | Lo canceló Mercado Pago (desde la cuenta del socio, o después de varios cobros fallidos), o el socio pasó a una categoría sin cuota. **No sale** si lo canceló el socio desde el sitio, que ya lo sabe, ni si se lo dio de baja |
+  | "Tu cuota de socio se renueva en N días" | Reemplaza al aviso "por vencer" para quien tiene el débito `ACTIVO`: le dice que no tiene que hacer nada. Un "pagala" lo llevaría a pagar dos veces |
+
+  En el panel no hay indicador de débitos con problemas (decisión del cliente: solo los
+  correos).
 - **Vuelta desde Mercado Pago:** al perfil (`SITIO_URL/perfil`) cuando el sitio es https.
   Mercado Pago rechaza una vuelta a `localhost` (`back_url` inválida, comprobado el
   2026-11-03), así que en desarrollo el socio termina en su lista de suscripciones de
@@ -582,6 +593,103 @@ el panel no se devuelve plata.
   minuto. Para correrlo en el momento: `npm run mp:revisar`. Es idempotente.
 - **Al socio dado de alta por un pago que después se devuelve no se lo da de baja
   solo.** Queda con la cuota vencida y el admin lo ve en el indicador.
+
+### Tienda online — catálogo (tarea 1, backend implementado)
+
+Tienda del club (camisetas, indumentaria urbana, vasos, mates), **integrada** a este
+sistema. El plan completo, por tareas, está en el documento "CDI — Plan de demo y
+hoja de ruta", pestaña Tienda. La tarea 1 es el catálogo; pedidos, dashboard,
+arrepentimiento y pasarela vienen después.
+
+- **Esquema propio:** las tablas viven en el esquema `tienda` de la misma base. Se
+  ven, se respaldan y se pueden permisar aparte, sin perder transacciones ni claves
+  foráneas con `usuarios`. Una base separada no sumaba seguridad real y rompía eso.
+- **Sitio aparte en un subdominio** (`tienda.<dominio>`, decisión del 2026-11-04): el
+  mismo proyecto Next, con un middleware por host, y la misma API. La cookie de
+  sesión (host-only, `SameSite=Lax`) sirve tal cual. `TIENDA_URL` es la base de los
+  enlaces de la tienda: se arman como `TIENDA_URL` + ruta relativa, sin repetir
+  `/tienda` (en desarrollo vale `http://localhost:3000/tienda`).
+
+**Decisiones del cliente (2026-11-04):**
+- Compra cualquiera, sin cuenta. El socio que inicia sesión ve su descuento.
+- Cada producto es lo que muestra su foto: **solo se elige el talle**, sin colores
+  ni personalización.
+- Solo se vende con stock, solo online, con retiro en el club.
+- Descuento de socio por categoría (Activo y Campeón), configurable, **solo con la
+  cuota al día**.
+- Botón de arrepentimiento: avisa al admin, que revisa el caso y devuelve desde
+  Mercado Pago, como en las cuotas.
+- La facturación y la cuenta de Mercado Pago se definen con la pasarela.
+
+#### Endpoints públicos
+
+| Método | Ruta | Acceso | Notas |
+|---|---|---|---|
+| GET | `/tienda/categorias` | **público** | Las activas, en el orden del menú |
+| GET | `/tienda/productos` | **público** | Paginado. Filtros: `categoria` (slug), `talle` (con stock), `precioMin`, `precioMax`, `buscar`, `destacados=true`. `orden`: `relevancia` (por defecto) \| `nuevos` \| `precio-asc` \| `precio-desc`. **Lo agotado va siempre al final** |
+| GET | `/tienda/productos/:slug` | **público** | Ficha: descripción, fotos y talles en orden. `404` si no existe o está inactivo |
+| GET | `/tienda/configuracion` | **público** | `{ retiroLugar, retiroDireccion, retiroHorarios }`. Vacíos hasta que el club los cargue |
+| GET | `/tienda/mi-descuento` | SOCIO | `{ porcentaje, motivo, categoria }`. `motivo`: `APLICA` \| `CATEGORIA_SIN_DESCUENTO` \| `CUOTA_VENCIDA` \| `SOCIO_DE_BAJA` |
+
+- **La tienda pública nunca muestra el stock exacto**, solo `disponibilidad`:
+  `DISPONIBLE`, `ULTIMAS_UNIDADES` (stock menor o igual al umbral configurable, 3 por
+  defecto) o `SIN_STOCK`. El número lo ve el panel.
+- **`precioSocio` en cada producto es una referencia** para quien no inició sesión:
+  el precio con el **mayor** descuento entre las categorías activas, con su
+  `descuentoSocio`. Es `null` si ninguna tiene descuento. El precio de cada socio
+  sale de `/tienda/mi-descuento`, redondeado al centavo (medio centavo hacia arriba).
+  **El precio de un pedido lo calcula siempre la API.**
+- `nuevo`: el producto se cargó en los últimos 30 días. `tieneTalles: false` (vaso,
+  mate): una sola variante, con `talle: null`, y se compra sin elegir.
+- `descripcion` es **Markdown, nunca HTML**.
+
+#### Endpoints del panel (`ADMIN` y `TIENDA`)
+
+| Método | Ruta | Notas |
+|---|---|---|
+| GET · POST | `/tienda/admin/categorias` | Todas, también las inactivas. Alta con `nombre`, `slug?` y `orden?` |
+| PATCH | `/tienda/admin/categorias/:id` | No hay baja: `activa: false` la saca con sus productos |
+| GET | `/tienda/admin/productos` | Paginado, con el stock exacto. Filtros: `buscar`, `categoriaId`, `activo`, `stockBajo=true` |
+| GET | `/tienda/admin/productos/:id` | |
+| POST | `/tienda/admin/productos` | Con `variantes`: con talles, una fila por talle; sin talles, una sola fila sin `talle`. El stock inicial queda en el historial |
+| PATCH | `/tienda/admin/productos/:id` | Datos del producto. No hay baja: `activo: false` lo oculta. **El slug no cambia al renombrar** |
+| POST | `/tienda/admin/productos/:id/talles` | Agrega un talle. Solo a un producto que ya tiene talles |
+| PATCH | `/tienda/admin/variantes/:id` | Renombra, reordena o desactiva un talle |
+| POST | `/tienda/admin/variantes/:id/stock` | `{ cantidad, motivo: INGRESO \| AJUSTE, observaciones? }`. Se **suma** al stock |
+| GET | `/tienda/admin/productos/:id/movimientos` | Historial de stock, paginado |
+| POST | `/tienda/admin/productos/:id/imagenes` | `multipart`, campo `imagenes`. Se agregan al final |
+| PUT | `/tienda/admin/productos/:id/imagenes/orden` | `{ ids }`: todas las fotos, en el orden nuevo. La primera es la de la grilla |
+| DELETE | `/tienda/admin/imagenes/:id` | Borra el archivo |
+| GET · PATCH | `/tienda/admin/configuracion` | `retiroLugar`, `retiroDireccion`, `retiroHorarios`, `umbralUltimasUnidades` |
+
+Las respuestas de producto del panel traen el producto entero (`ProductoAdmin`), así
+el front refresca la pantalla con lo que vuelve.
+
+**Operadores de tienda** (solo `ADMIN`): `GET · POST /tienda/admin/operadores`,
+`PATCH /tienda/admin/operadores/:id` (`{ activo }`) y
+`POST /tienda/admin/operadores/:id/resetear-password`. Se entra con el DNI. La
+contraseña inicial se devuelve una vez y hay que cambiarla en el primer ingreso.
+**Desactivar a un operador le corta la sesión en el próximo request.** Un DNI que ya
+tiene usuario (por ejemplo, un socio) responde `409`.
+
+**El descuento por categoría** se configura en `PATCH /tipos-socio/:id` con
+`descuentoTienda` (0 a 100), solo el `ADMIN`. Viene en cada `TipoSocio`.
+
+**Reglas del catálogo:**
+- **El stock solo cambia con un movimiento**, que queda con cantidad, stock resultante,
+  motivo y quién lo cargó. No se edita ni se borra: un error se corrige con un ajuste
+  contrario. Se suma en la base en una sola sentencia, con la condición de no quedar
+  negativo, así un ingreso del panel no pisa una venta simultánea.
+- **Talles en mayúscula y sin repetir** ("m" y "M" son el mismo). Un producto es con
+  talles o sin talles: no se mezclan.
+- **Nada se borra:** categorías, productos y talles se desactivan, porque los pedidos
+  van a apuntar a ellos.
+- **Fotos re-codificadas:** jpg, png o webp, hasta 8 MB, al menos 600 px de lado y
+  hasta 10 por producto. sharp las abre de verdad (un archivo disfrazado se
+  rechaza), las endereza, les borra los metadatos (GPS, cámara) y las guarda en WebP
+  con 1600 px como máximo, en `uploads/productos`.
+- **El panel no muestra datos de los socios a un operador.** Los endpoints de socios,
+  cuotas y cobros siguen siendo solo del `ADMIN`.
 
 ### Disciplinas (implementado)
 
@@ -767,14 +875,16 @@ los de una base existente, editarlos desde el panel (`PATCH /tipos-socio/:id`).
 - `cobros_online`: cada intento de cobro por Mercado Pago (`referencia` única = `external_reference`, `tipo`, `estado`, `socio_id`, `meses`, `monto_mensual`, `total`, `preferencia_id`, `init_point`, `expira_en`, `mp_payment_id` único, `pago_id` → el `Pago` registrado, `solicitud_id` en un alta (queda nulo al resolverse), `detalle`). No es el registro contable: ese es `pagos`.
 - `debitos_automaticos`: débito automático de cada socio (`socio_id`, `estado` = `PENDIENTE` | `ACTIVO` | `PAUSADO` | `CANCELADO`, `plan_id` único, `init_point`, `suscripcion_id` único, `monto`, `cancelado_en`, `motivo_cancelacion`). A lo sumo uno no cancelado por socio.
 - `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, `origen` (`PANEL` | `MERCADO_PAGO`), quién registró (nulo solo en los cobros online), datos de anulación, y la devolución o contracargo detectado en Mercado Pago: `devolucion` = `DEVOLUCION` | `DEVOLUCION_PARCIAL` | `CONTRACARGO`, `monto_devuelto`, `devolucion_en`, `vigencia_revertida` y `devolucion_revisada_en`).
+- `tipos_socio.descuento_tienda` (0–100) y `usuarios.activo` (un usuario inactivo no entra; lo usan los operadores de tienda).
+- Esquema `tienda`: `categorias` (`slug` único, `orden`, `activa`), `productos` (`slug` único, `precio` numeric, `descripcion` Markdown, `destacado`, `activo`), `variantes` (un talle de un producto, `talle` nulo = sin talles, `stock` ≥ 0, `orden`, `activa`), `imagenes` (ruta, orden, ancho y alto), `movimientos_stock` (cantidad, stock resultante, motivo `INGRESO` \| `AJUSTE` \| `VENTA` \| `CANCELACION`, quién) y `configuracion` (una fila: datos de retiro y umbral de últimas unidades).
 - `paginas`: secciones de contenido editable (`slug` único, `titulo`, `resumen`, `contenido` en Markdown, `publicada`).
 - `disciplinas`: actividades del menú (`slug` único, `orden`, `activa`). Lista plana, sin jerarquía.
 - `solicitudes_socio`: postulaciones pendientes (datos del formulario + `foto_path` + `tipo_socio_id` + `estado` = `PENDIENTE_PAGO` | `REQUIERE_REVISION`, `vence_en`, `motivo_revision`). `dni` y `email` únicos. Se borra al darse el alta, al rechazarla o si el pago se rechaza o vence.
 - `solicitudes_baja`: pedidos de baja pendientes (`socio_id` único + `motivo` opcional). Se borra al aprobar o rechazar; aprobar solo cambia `socios.estado` a `BAJA`.
-- `avisos_enviados`: cada correo automático mandado (`socio_id`, `tipo` = `CUOTA_POR_VENCER` | `CUOTA_VENCIDA` | `CUMPLEANIOS`, `fecha_referencia`, `fecha_envio`, `email`). `fecha_referencia` es el vencimiento en los avisos de cuota y el día del saludo en el de cumpleaños. Único por socio + tipo + fecha: es lo que impide repetirlo.
+- `avisos_enviados`: cada correo automático mandado (`socio_id`, `tipo` = `CUOTA_POR_VENCER` | `CUOTA_VENCIDA` | `CUMPLEANIOS` | `DEBITO_RECHAZADO`, `fecha_referencia`, `fecha_envio`, `email`). `fecha_referencia` es el vencimiento en los avisos de cuota, el día del saludo en el de cumpleaños y el día del cobro en el de débito rechazado. Único por socio + tipo + fecha: es lo que impide repetirlo.
 - `socios.foto_path` guarda la ruta relativa del archivo; la URL pública se arma al responder.
 
 ## Comandos rápidos
 
-Backend (`cdi-backend/`): `npm run start:dev`, `npm test`, `npm run lint`, `npm run migration:generate -- src/database/migrations/<Nombre>`, `npm run migration:run`, `npm run seed`, `npm run seed:dev` (datos de prueba para el frontend; credenciales en el README del backend), `npm run avisos:enviar` (manda ya los avisos de cuota y saludos de cumpleaños del día; en desarrollo acepta una fecha para simular), `npm run mp:verificar` (comprueba las credenciales de Mercado Pago del `.env` sin mostrarlas), `npm run mp:revisar` (corre ya la revisión de cada hora de pagos de Mercado Pago: devoluciones, contracargos y aprobados que se hayan escapado).
+Backend (`cdi-backend/`): `npm run start:dev`, `npm test`, `npm run lint`, `npm run migration:generate -- src/database/migrations/<Nombre>`, `npm run migration:run`, `npm run seed`, `npm run seed:dev` (datos de prueba para el frontend; credenciales en el README del backend), `npm run demo:reiniciar` (**borra todos los datos** y deja la base para mostrarle el sistema al cliente: el admin, tres socios (al día, por vencer y con la cuota vencida) y la tienda con seis productos de muestra y 10% de descuento para Activo y Campeón, con la misma contraseña que `seed:dev`; correrlo con el servidor apagado y el mismo día de la demo, porque las fechas son relativas a hoy; no corre en producción), `npm run avisos:enviar` (manda ya los avisos de cuota y saludos de cumpleaños del día; en desarrollo acepta una fecha para simular), `npm run mp:verificar` (comprueba las credenciales de Mercado Pago del `.env` sin mostrarlas), `npm run mp:revisar` (corre ya la revisión de cada hora de pagos de Mercado Pago: devoluciones, contracargos y aprobados que se hayan escapado).
 Frontend (`cdi-frontend/`): `npm run dev`, `npm run lint`, `npm run build`.
