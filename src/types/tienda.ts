@@ -186,6 +186,8 @@ export interface MovimientoStockInput {
 
 export interface ConfiguracionTienda extends ConfiguracionTiendaPublica {
   umbralUltimasUnidades: number;
+  /** Cuántas horas se reserva el stock de un pedido sin pagar (1 a 720). */
+  horasReserva: number;
   updatedAt: ISODateString;
 }
 
@@ -204,4 +206,114 @@ export interface OperadorTienda {
 export interface OperadorConPassword {
   operador: OperadorTienda;
   passwordInicial: string;
+}
+
+// ------------------------------------------------------ Carrito y pedido
+
+/**
+ * Lo que la API dice de una línea del carrito al cotizar. Una línea con
+ * problema no hace fallar la cotización: viene marcada y `valida` es false.
+ */
+export type ProblemaLinea = "NO_DISPONIBLE" | "STOCK_INSUFICIENTE";
+
+export interface LineaCotizada {
+  varianteId: string;
+  productoSlug: string | null;
+  productoNombre: string;
+  talle: string | null;
+  imagenUrl: string | null;
+  cantidad: number;
+  /** Precio de lista. */
+  precioUnitario: number;
+  /** Con el descuento de socio, si corresponde. */
+  precioFinal: number;
+  subtotal: number;
+  problema: ProblemaLinea | null;
+  /** Solo con STOCK_INSUFICIENTE. */
+  disponibles: number | null;
+}
+
+export interface Cotizacion {
+  lineas: LineaCotizada[];
+  subtotal: number;
+  descuentoPorcentaje: number;
+  descuentoMonto: number;
+  total: number;
+  valida: boolean;
+  /** Para un socio con sesión; `null` para un invitado. */
+  descuentoSocio: { porcentaje: number; motivo: MotivoDescuento } | null;
+}
+
+export interface ItemCarritoInput {
+  varianteId: string;
+  cantidad: number;
+}
+
+/** Topes de la API: 10 unidades de cada producto y 20 productos distintos. */
+export const MAXIMO_UNIDADES_POR_PRODUCTO = 10;
+export const MAXIMO_PRODUCTOS_DISTINTOS = 20;
+
+export const ESTADOS_PEDIDO = ["PENDIENTE_PAGO", "PAGADO", "PREPARADO", "RETIRADO", "CANCELADO"] as const;
+export type EstadoPedido = (typeof ESTADOS_PEDIDO)[number];
+
+export const ETIQUETAS_ESTADO_PEDIDO: Record<EstadoPedido, string> = {
+  PENDIENTE_PAGO: "Reservado · se paga al retirar",
+  PAGADO: "Pagado",
+  PREPARADO: "Listo para retirar",
+  RETIRADO: "Retirado",
+  CANCELADO: "Cancelado",
+};
+
+export interface ItemPedido {
+  productoNombre: string;
+  productoSlug: string | null;
+  talle: string | null;
+  imagenUrl: string | null;
+  cantidad: number;
+  precioUnitario: number;
+  precioFinal: number;
+  subtotal: number;
+}
+
+/** Un pedido con sus precios congelados del momento de la compra. No trae el DNI. */
+export interface Pedido {
+  /** Correlativo, como "T-0042": no alcanza para ver el pedido. */
+  codigo: string;
+  estado: EstadoPedido;
+  createdAt: ISODateString;
+  /** Hasta cuándo se reserva el stock mientras está PENDIENTE_PAGO. */
+  venceEn: ISODateString | null;
+  comprador: { nombre: string; apellido: string; email: string; telefono: string };
+  retiro: { lugar: string; direccion: string; horarios: string; retiraOtraPersona: string | null };
+  notas: string | null;
+  items: ItemPedido[];
+  subtotal: number;
+  descuentoPorcentaje: number;
+  descuentoMonto: number;
+  total: number;
+  motivoCancelacion: string | null;
+  historial: { estado: EstadoPedido; fecha: ISODateString }[];
+}
+
+export interface CompradorInput {
+  nombre: string;
+  apellido: string;
+  dni: string;
+  email: string;
+  telefono: string;
+}
+
+export interface CrearPedidoInput {
+  items: ItemCarritoInput[];
+  /** Solo el invitado: el socio con sesión compra con los datos de su ficha. */
+  comprador?: CompradorInput;
+  /** Solo si retira otra persona. */
+  retira?: { nombre: string; dni: string };
+  notas?: string;
+}
+
+export interface CrearPedidoResponse {
+  pedido: Pedido;
+  /** Para ver el pedido sin sesión. Nunca va en la URL de la tienda. */
+  seguimientoToken: string;
 }

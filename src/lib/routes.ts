@@ -9,6 +9,7 @@ export const ROUTES = {
   adminSocios: "/admin/socios",
   tienda: "/tienda",
   tiendaPanel: "/tienda/panel",
+  misCompras: "/tienda/mis-compras",
 } as const;
 
 /**

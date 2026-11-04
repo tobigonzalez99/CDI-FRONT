@@ -43,6 +43,7 @@ function FormularioConfiguracion({ configuracion }: { configuracion: Configuraci
       retiroDireccion: configuracion.retiroDireccion,
       retiroHorarios: configuracion.retiroHorarios,
       umbralUltimasUnidades: configuracion.umbralUltimasUnidades,
+      horasReserva: configuracion.horasReserva,
     },
   });
 
@@ -58,6 +59,7 @@ function FormularioConfiguracion({ configuracion }: { configuracion: Configuraci
           "retiroDireccion",
           "retiroHorarios",
           "umbralUltimasUnidades",
+          "horasReserva",
         ])
       ) {
         toast.error("No pudimos guardar los ajustes", { description: mensajeDeError(error) });
@@ -90,14 +92,18 @@ function FormularioConfiguracion({ configuracion }: { configuracion: Configuraci
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-heading text-base">Aviso de últimas unidades</CardTitle>
+          <CardTitle className="font-heading text-base">Stock y reservas</CardTitle>
           <CardDescription>
-            Con este stock o menos, la tienda muestra «Últimas unidades». El número exacto no
-            se muestra nunca.
+            Cuándo se avisa que quedan pocas y cuánto se guarda un pedido sin pagar.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <Campo id={`${id}-umbral`} etiqueta="Unidades" error={errors.umbralUltimasUnidades?.message}>
+          <Campo
+            id={`${id}-umbral`}
+            etiqueta="Aviso de «Últimas unidades»"
+            ayuda="Con este stock o menos se avisa. El número exacto no se muestra nunca."
+            error={errors.umbralUltimasUnidades?.message}
+          >
             <Input
               id={`${id}-umbral`}
               type="number"
@@ -105,6 +111,22 @@ function FormularioConfiguracion({ configuracion }: { configuracion: Configuraci
               inputMode="numeric"
               className="h-10 w-28"
               {...register("umbralUltimasUnidades", { valueAsNumber: true })}
+            />
+          </Campo>
+          <Campo
+            id={`${id}-reserva`}
+            etiqueta="Reserva de un pedido sin pagar (horas)"
+            ayuda="Pasado ese plazo el pedido se cancela solo y el stock vuelve. 48 = dos días."
+            error={errors.horasReserva?.message}
+          >
+            <Input
+              id={`${id}-reserva`}
+              type="number"
+              min={1}
+              max={720}
+              inputMode="numeric"
+              className="h-10 w-28"
+              {...register("horasReserva", { valueAsNumber: true })}
             />
           </Campo>
         </CardContent>

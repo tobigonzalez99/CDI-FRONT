@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, LogIn, Menu } from "lucide-react";
+import { ChevronDown, LogIn, Menu, ShoppingBag } from "lucide-react";
 
 import {
   Sheet,
@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ClubLogo } from "@/components/shared/club-logo";
 import { cn } from "@/lib/utils";
-import { hasChildren, type NavEntry } from "./nav-config";
+import { hasChildren, TIENDA_URL, type NavEntry } from "./nav-config";
 
 interface MobileNavProps {
   /** Mismo árbol que el menú de escritorio, ya con las disciplinas colgadas. */
@@ -112,6 +112,18 @@ export function MobileNav({ entradas, onLoginClick, isActive }: MobileNavProps) 
               </div>
             );
           })}
+
+          <a
+            href={TIENDA_URL}
+            target="_blank"
+            rel="noopener"
+            onClick={() => setOpen(false)}
+            className="mt-2 flex items-center gap-2 rounded-md px-3 py-2.5 text-base font-medium text-brand-red-soft transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <ShoppingBag className="size-4" aria-hidden />
+            Tienda
+            <span className="sr-only">(se abre en otra pestaña)</span>
+          </a>
 
           <Button
             size="lg"

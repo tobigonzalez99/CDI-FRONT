@@ -79,6 +79,11 @@ export const configuracionTiendaSchema = z.object({
     .int("Va sin decimales")
     .min(0, "No puede ser negativo")
     .max(100, "Es demasiado alto"),
+  horasReserva: z
+    .number({ invalid_type_error: "Ingresá las horas" })
+    .int("Va sin decimales")
+    .min(1, "Al menos 1 hora")
+    .max(720, "Hasta 720 horas (30 días)"),
 });
 
 export type ConfiguracionTiendaFormValues = z.infer<typeof configuracionTiendaSchema>;
@@ -96,3 +101,63 @@ export const operadorSchema = z.object({
 });
 
 export type OperadorFormValues = z.infer<typeof operadorSchema>;
+
+// ------------------------------------------------------------------ Compra
+
+const dni = z
+  .string()
+  .trim()
+  .min(1, "Ingresá el DNI")
+  .regex(/^\d+$/, "El DNI debe tener solo números, sin puntos")
+  .min(7, "El DNI debe tener al menos 7 dígitos")
+  .max(8, "El DNI debe tener como máximo 8 dígitos");
+
+/**
+ * Datos de la compra. El comprador lo completa solo el invitado: el socio
+ * compra con los de su ficha. Quien retira, solo si es otra persona.
+ */
+export const checkoutSchema = z
+  .object({
+    esInvitado: z.boolean(),
+    comprador: z.object({
+      nombre: z.string().trim().max(60, "Es muy largo").toUpperCase(),
+      apellido: z.string().trim().max(60, "Es muy largo").toUpperCase(),
+      dni: z.string().trim(),
+      email: z.string().trim(),
+      telefono: z.string().trim().max(30, "Es muy largo"),
+    }),
+    retiraOtro: z.boolean(),
+    retira: z.object({
+      nombre: z.string().trim().max(120, "Es muy largo"),
+      dni: z.string().trim(),
+    }),
+    notas: z.string().trim().max(300, "Hasta 300 caracteres"),
+    acepta: z.boolean(),
+  })
+  .superRefine((valores, ctx) => {
+    const exigir = (ok: boolean, path: (string | number)[], message: string) => {
+      if (!ok) ctx.addIssue({ code: "custom", path, message });
+    };
+
+    if (valores.esInvitado) {
+      const { comprador } = valores;
+      exigir(comprador.nombre.length >= 2, ["comprador", "nombre"], "Ingresá tu nombre");
+      exigir(comprador.apellido.length >= 2, ["comprador", "apellido"], "Ingresá tu apellido");
+      const dniOk = dni.safeParse(comprador.dni);
+      exigir(dniOk.success, ["comprador", "dni"], dniOk.error?.issues[0]?.message ?? "");
+      exigir(
+        z.string().email().safeParse(comprador.email).success,
+        ["comprador", "email"],
+        "Ingresá un correo válido: ahí te llega el pedido",
+      );
+      exigir(comprador.telefono.length >= 6, ["comprador", "telefono"], "Ingresá un teléfono de contacto");
+    }
+
+    if (valores.retiraOtro) {
+      exigir(valores.retira.nombre.length >= 3, ["retira", "nombre"], "Ingresá nombre y apellido");
+      const dniOk = dni.safeParse(valores.retira.dni);
+      exigir(dniOk.success, ["retira", "dni"], dniOk.error?.issues[0]?.message ?? "");
+    }
+  });
+
+export type CheckoutFormValues = z.infer<typeof checkoutSchema>;

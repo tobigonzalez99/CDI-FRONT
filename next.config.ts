@@ -42,6 +42,11 @@ const nextConfig: NextConfig = {
         source: "/elegir-password",
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
       },
+      // El enlace de seguimiento de un pedido de la tienda trae su token.
+      {
+        source: "/tienda/pedido",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
     ];
   },
 

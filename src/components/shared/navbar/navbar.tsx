@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, LogIn } from "lucide-react";
+import { ChevronDown, LogIn, ShoppingBag } from "lucide-react";
 
 import { UserMenu } from "@/features/auth/components/user-menu";
 import { useSession } from "@/features/auth/hooks/use-session";
@@ -23,6 +23,7 @@ import {
   hasChildren,
   INICIO,
   NAV_ENTRIES,
+  TIENDA_URL,
   type NavEntry,
   type NavItem,
 } from "./nav-config";
@@ -144,6 +145,17 @@ export function Navbar({ disciplinas = [] }: { disciplinas?: NavItem[] }) {
                   </DropdownMenu>
                 );
               })}
+
+              <a
+                href={TIENDA_URL}
+                target="_blank"
+                rel="noopener"
+                className={cn(linkStyles, "ml-1 flex items-center gap-1.5 text-brand-red-soft hover:text-white")}
+              >
+                <ShoppingBag className="size-4" aria-hidden />
+                Tienda
+                <span className="sr-only">(se abre en otra pestaña)</span>
+              </a>
             </nav>
 
             <div className="ml-auto flex items-center gap-2 md:ml-0">

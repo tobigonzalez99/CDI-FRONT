@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, LogOut, Store, User } from "lucide-react";
+import { LayoutDashboard, LogOut, ShoppingBag, Store, User } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -73,6 +73,16 @@ export function UserMenu({ user, enLaTienda = false }: { user: AuthUser; enLaTie
               <Link href={ROUTES.tiendaPanel}>
                 <Store className="size-4" aria-hidden />
                 Panel de la tienda
+              </Link>
+            }
+          />
+        )}
+        {enLaTienda && user.rol === "SOCIO" && (
+          <DropdownMenuItem
+            render={
+              <Link href={ROUTES.misCompras}>
+                <ShoppingBag className="size-4" aria-hidden />
+                Mis compras
               </Link>
             }
           />

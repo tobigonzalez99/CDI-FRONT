@@ -2,8 +2,15 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
+import { toast } from "sonner";
+
 import { useMiDescuento } from "@/features/tienda/hooks/use-tienda";
 import { precioConDescuento } from "@/features/tienda/lib/precio";
+import {
+  MAXIMO_PRODUCTOS_DISTINTOS,
+  MAXIMO_UNIDADES_POR_PRODUCTO,
+  type ItemCarritoInput,
+} from "@/types/tienda";
 
 /**
  * Carrito de la tienda.
@@ -30,6 +37,8 @@ export interface ItemCarrito {
 
 interface CarritoValue {
   items: ItemCarrito[];
+  /** Lo que se manda a la API para cotizar o confirmar. */
+  itemsParaApi: ItemCarritoInput[];
   agregar: (item: Omit<ItemCarrito, "cantidad">) => void;
   cambiarCantidad: (varianteId: string, cantidad: number) => void;
   quitar: (varianteId: string) => void;
@@ -88,20 +97,36 @@ export function CarritoProvider({ children }: { children: React.ReactNode }) {
 
     return {
       items,
+      itemsParaApi: items.map(({ varianteId, cantidad }) => ({ varianteId, cantidad })),
       agregar: (nuevo) => {
-        setItems((actuales) => {
-          const existe = actuales.some((item) => item.varianteId === nuevo.varianteId);
-          return existe
+        // Los mismos topes que la API, para no armar un carrito que va a rechazar.
+        const existente = items.find((item) => item.varianteId === nuevo.varianteId);
+        if (existente && existente.cantidad >= MAXIMO_UNIDADES_POR_PRODUCTO) {
+          toast.info(`Podés llevar hasta ${MAXIMO_UNIDADES_POR_PRODUCTO} de cada producto.`);
+          setAbierto(true);
+          return;
+        }
+        if (!existente && items.length >= MAXIMO_PRODUCTOS_DISTINTOS) {
+          toast.info(`El carrito admite hasta ${MAXIMO_PRODUCTOS_DISTINTOS} productos distintos.`);
+          setAbierto(true);
+          return;
+        }
+        setItems((actuales) =>
+          existente
             ? actuales.map((item) =>
                 item.varianteId === nuevo.varianteId ? { ...item, cantidad: item.cantidad + 1 } : item,
               )
-            : [...actuales, { ...nuevo, cantidad: 1 }];
-        });
+            : [...actuales, { ...nuevo, cantidad: 1 }],
+        );
         setAbierto(true);
       },
       cambiarCantidad: (varianteId, cantidad) =>
         setItems((actuales) =>
-          actuales.map((item) => (item.varianteId === varianteId ? { ...item, cantidad } : item)),
+          actuales.map((item) =>
+            item.varianteId === varianteId
+              ? { ...item, cantidad: Math.min(Math.max(cantidad, 1), MAXIMO_UNIDADES_POR_PRODUCTO) }
+              : item,
+          ),
         ),
       quitar: (varianteId) =>
         setItems((actuales) => actuales.filter((item) => item.varianteId !== varianteId)),

@@ -17,6 +17,12 @@ export function hasChildren(entry: NavEntry): entry is NavSection {
 }
 
 export const DISCIPLINAS_HREF = "/disciplinas";
+
+/**
+ * La tienda se abre en otra pestaña y se presenta como un sitio aparte. En
+ * producción es su subdominio (NEXT_PUBLIC_TIENDA_URL); en local, /tienda.
+ */
+export const TIENDA_URL = process.env.NEXT_PUBLIC_TIENDA_URL || "/tienda";
 export const PROYECTOS_HREF = "/proyectos";
 
 /**
