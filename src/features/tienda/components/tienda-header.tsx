@@ -10,6 +10,15 @@ import { useMaqueta } from "@/features/tienda/maqueta/maqueta-context";
 import { CATEGORIAS } from "@/features/tienda/maqueta/datos";
 import { cn } from "@/lib/utils";
 
+/** "Todos" adelante: ver el catálogo completo no depende de abrir los filtros. */
+const SECCIONES = [
+  { href: "/tienda/productos", nombre: "Todos" },
+  ...CATEGORIAS.map((categoria) => ({
+    href: `/tienda/productos?categoria=${categoria.slug}`,
+    nombre: categoria.nombre,
+  })),
+];
+
 /**
  * Encabezado propio de la tienda.
  *
@@ -39,18 +48,15 @@ export function TiendaHeader() {
         </Link>
 
         <nav aria-label="Categorías" className="mx-auto hidden items-center gap-1 md:flex">
-          {CATEGORIAS.map((categoria) => {
-            const href = `/tienda/productos?categoria=${categoria.slug}`;
-            return (
-              <Link
-                key={categoria.slug}
-                href={href}
-                className="rounded-md px-3 py-2 text-sm font-medium text-white/85 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                {categoria.nombre}
-              </Link>
-            );
-          })}
+          {SECCIONES.map((seccion) => (
+            <Link
+              key={seccion.href}
+              href={seccion.href}
+              className="rounded-md px-3 py-2 text-sm font-medium text-white/85 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              {seccion.nombre}
+            </Link>
+          ))}
         </nav>
 
         <div className="ml-auto flex items-center gap-1 md:ml-0">
@@ -115,13 +121,13 @@ export function TiendaHeader() {
         aria-label="Categorías"
         className="flex gap-2 overflow-x-auto border-t border-white/10 px-4 py-2 [scrollbar-width:none] md:hidden"
       >
-        {CATEGORIAS.map((categoria) => (
+        {SECCIONES.map((seccion) => (
           <Link
-            key={categoria.slug}
-            href={`/tienda/productos?categoria=${categoria.slug}`}
+            key={seccion.href}
+            href={seccion.href}
             className="shrink-0 rounded-full border border-white/20 px-3 py-1 text-xs font-medium text-white/85"
           >
-            {categoria.nombre}
+            {seccion.nombre}
           </Link>
         ))}
       </nav>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Menu } from "lucide-react";
 
@@ -175,6 +176,14 @@ export function Catalogo() {
             <h1 className="font-heading text-3xl font-bold tracking-tight">{titulo}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {productos.length} {productos.length === 1 ? "producto" : "productos"}
+              {cantidadFiltros > 0 && (
+                <>
+                  {" · "}
+                  <Link href="/tienda/productos" className="font-medium text-brand-red hover:underline">
+                    Ver todos los productos
+                  </Link>
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -226,15 +235,14 @@ export function Catalogo() {
           </SheetHeader>
           <div className="flex-1 overflow-y-auto p-4">{filtros}</div>
           <SheetFooter className="flex-row border-t">
+            {/* Se cierra con la X o tocando afuera: la grilla se actualiza al instante. */}
             <Button
               variant="outline"
               className="h-11 flex-1"
+              disabled={cantidadFiltros === 0}
               onClick={() => router.replace("/tienda/productos", { scroll: false })}
             >
-              Limpiar
-            </Button>
-            <Button className="h-11 flex-1" onClick={() => setFiltrosAbiertos(false)}>
-              Ver {productos.length} {productos.length === 1 ? "producto" : "productos"}
+              Limpiar filtros
             </Button>
           </SheetFooter>
         </SheetContent>
