@@ -10,9 +10,9 @@ import { useMaqueta } from "@/features/tienda/maqueta/maqueta-context";
 import { CATEGORIAS } from "@/features/tienda/maqueta/datos";
 import { cn } from "@/lib/utils";
 
-/** "Todos" adelante: ver el catálogo completo no depende de abrir los filtros. */
+/** "Todos los productos" adelante: ver el catálogo completo no depende de abrir los filtros. */
 const SECCIONES = [
-  { href: "/tienda/productos", nombre: "Todos" },
+  { href: "/tienda/productos", nombre: "Todos los productos" },
   ...CATEGORIAS.map((categoria) => ({
     href: `/tienda/productos?categoria=${categoria.slug}`,
     nombre: categoria.nombre,
