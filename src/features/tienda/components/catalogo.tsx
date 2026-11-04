@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { SlidersHorizontal, X } from "lucide-react";
+import { Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -151,28 +151,35 @@ export function Catalogo() {
   return (
     <div className="container mx-auto px-4 py-8 md:py-12">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-3xl font-bold tracking-tight">{titulo}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {productos.length} {productos.length === 1 ? "producto" : "productos"}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
+        <div className="flex items-end gap-3">
+          {/*
+            Los filtros van en un menú que se abre desde la izquierda y se
+            esconde: la grilla aprovecha todo el ancho y los productos se ven
+            más grandes.
+          */}
           <Button
             variant="outline"
-            className="h-9 lg:hidden"
+            className="relative h-10 gap-2 px-3"
+            aria-label={cantidadFiltros > 0 ? `Filtros, ${cantidadFiltros} aplicados` : "Filtros"}
             onClick={() => setFiltrosAbiertos(true)}
           >
-            <SlidersHorizontal className="size-4" aria-hidden />
-            Filtrar
+            <Menu className="size-5" aria-hidden />
+            <span className="hidden sm:inline">Filtros</span>
             {cantidadFiltros > 0 && (
-              <span className="rounded-full bg-brand-red px-1.5 text-[11px] font-bold text-white">
+              <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-brand-red text-[11px] font-bold text-white">
                 {cantidadFiltros}
               </span>
             )}
           </Button>
+          <div>
+            <h1 className="font-heading text-3xl font-bold tracking-tight">{titulo}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {productos.length} {productos.length === 1 ? "producto" : "productos"}
+            </p>
+          </div>
+        </div>
 
+        <div className="flex items-center gap-2">
           <label className="flex items-center gap-2 text-sm">
             <span className="hidden text-muted-foreground sm:inline">Ordenar</span>
             <select
@@ -190,21 +197,7 @@ export function Catalogo() {
         </div>
       </div>
 
-      <div className="mt-8 grid gap-10 lg:grid-cols-[240px_1fr]">
-        <aside className="hidden lg:block">
-          {filtros}
-          {cantidadFiltros > 0 && (
-            <button
-              type="button"
-              onClick={() => router.replace("/tienda/productos", { scroll: false })}
-              className="mt-6 flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-4" aria-hidden />
-              Limpiar filtros
-            </button>
-          )}
-        </aside>
-
+      <div className="mt-8">
         {productos.length === 0 ? (
           <div className="rounded-2xl border border-dashed py-16 text-center">
             <p className="text-sm text-muted-foreground">
@@ -218,7 +211,7 @@ export function Catalogo() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
             {productos.map((producto) => (
               <TarjetaProducto key={producto.slug} producto={producto} />
             ))}
@@ -227,11 +220,11 @@ export function Catalogo() {
       </div>
 
       <Sheet open={filtrosAbiertos} onOpenChange={setFiltrosAbiertos}>
-        <SheetContent side="bottom" className="max-h-[85vh] rounded-t-2xl">
-          <SheetHeader>
-            <SheetTitle className="text-lg font-bold">Filtrar</SheetTitle>
+        <SheetContent side="left" className="w-[85%] gap-0 sm:max-w-sm">
+          <SheetHeader className="border-b">
+            <SheetTitle className="text-lg font-bold">Filtros</SheetTitle>
           </SheetHeader>
-          <div className="overflow-y-auto px-4">{filtros}</div>
+          <div className="flex-1 overflow-y-auto p-4">{filtros}</div>
           <SheetFooter className="flex-row border-t">
             <Button
               variant="outline"
