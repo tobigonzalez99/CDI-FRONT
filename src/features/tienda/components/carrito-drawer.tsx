@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Minus, Plus, ShoppingBag, Store, Trash2 } from "lucide-react";
+import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -12,8 +12,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { IlustracionProducto } from "@/features/tienda/components/ilustracion-producto";
-import { useMaqueta } from "@/features/tienda/maqueta/maqueta-context";
+import { FotoProducto } from "@/features/tienda/components/foto-producto";
+import { Retiro } from "@/features/tienda/components/retiro";
+import { useCarrito } from "@/features/tienda/carrito/carrito-context";
 import { formatearMonto } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 
@@ -22,22 +23,13 @@ import { cn } from "@/lib/utils";
  * que entró sin perder la página en la que estaba.
  */
 export function CarritoDrawer() {
-  const {
-    items,
-    carritoAbierto,
-    setCarritoAbierto,
-    cambiarCantidad,
-    quitar,
-    precioDe,
-    subtotal,
-    total,
-    visitante,
-  } = useMaqueta();
+  const { items, abierto, setAbierto, cambiarCantidad, quitar, precioDe, subtotal, total } =
+    useCarrito();
 
   const ahorro = subtotal - total;
 
   return (
-    <Sheet open={carritoAbierto} onOpenChange={setCarritoAbierto}>
+    <Sheet open={abierto} onOpenChange={setAbierto}>
       <SheetContent side="right" className="w-full gap-0 sm:max-w-md">
         <SheetHeader className="border-b">
           <SheetTitle className="flex items-center gap-2 text-lg font-bold">
@@ -59,7 +51,7 @@ export function CarritoDrawer() {
             </p>
             <Link
               href="/tienda/productos"
-              onClick={() => setCarritoAbierto(false)}
+              onClick={() => setAbierto(false)}
               className={buttonVariants({ variant: "outline" })}
             >
               Ver productos
@@ -67,24 +59,30 @@ export function CarritoDrawer() {
           </div>
         ) : (
           <ul className="flex-1 divide-y overflow-y-auto px-4">
-            {items.map((item, indice) => (
-              <li key={`${item.producto.slug}-${item.talle ?? ""}`} className="flex gap-3 py-4">
-                <IlustracionProducto
-                  ilustracion={item.producto.ilustraciones[0]}
+            {items.map((item) => (
+              <li key={item.varianteId} className="flex gap-3 py-4">
+                <FotoProducto
+                  imagen={item.imagenUrl ? { id: item.varianteId, url: item.imagenUrl, ancho: 1, alto: 1 } : null}
+                  alt=""
+                  sizes="80px"
                   className="w-20 shrink-0 rounded-lg"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm leading-snug font-medium">{item.producto.nombre}</p>
-                  {item.talle && (
-                    <p className="text-xs text-muted-foreground">Talle {item.talle}</p>
-                  )}
+                  <Link
+                    href={`/tienda/productos/${item.slug}`}
+                    onClick={() => setAbierto(false)}
+                    className="text-sm leading-snug font-medium hover:underline"
+                  >
+                    {item.nombre}
+                  </Link>
+                  {item.talle && <p className="text-xs text-muted-foreground">Talle {item.talle}</p>}
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <div className="flex items-center rounded-lg border">
                       <button
                         type="button"
                         aria-label="Restar uno"
                         disabled={item.cantidad === 1}
-                        onClick={() => cambiarCantidad(indice, item.cantidad - 1)}
+                        onClick={() => cambiarCantidad(item.varianteId, item.cantidad - 1)}
                         className="flex size-8 items-center justify-center disabled:opacity-40"
                       >
                         <Minus className="size-3.5" aria-hidden />
@@ -93,21 +91,21 @@ export function CarritoDrawer() {
                       <button
                         type="button"
                         aria-label="Sumar uno"
-                        onClick={() => cambiarCantidad(indice, item.cantidad + 1)}
+                        onClick={() => cambiarCantidad(item.varianteId, item.cantidad + 1)}
                         className="flex size-8 items-center justify-center"
                       >
                         <Plus className="size-3.5" aria-hidden />
                       </button>
                     </div>
                     <p className="text-sm font-semibold tabular-nums">
-                      {formatearMonto(precioDe(item.producto) * item.cantidad)}
+                      {formatearMonto(precioDe(item.precio) * item.cantidad)}
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  aria-label={`Quitar ${item.producto.nombre}`}
-                  onClick={() => quitar(indice)}
+                  aria-label={`Quitar ${item.nombre}`}
+                  onClick={() => quitar(item.varianteId)}
                   className="self-start p-1 text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 className="size-4" aria-hidden />
@@ -119,12 +117,9 @@ export function CarritoDrawer() {
 
         {items.length > 0 && (
           <SheetFooter className="gap-3 border-t">
-            <p className="flex items-start gap-2 rounded-lg bg-muted p-3 text-xs text-muted-foreground">
-              <Store className="mt-px size-4 shrink-0" aria-hidden />
-              Retirás tu pedido en la sede del club. Te avisamos por correo cuando esté listo.
-            </p>
+            <Retiro className="rounded-lg bg-muted p-3 text-xs text-muted-foreground" />
 
-            {visitante === "socio" && ahorro > 0 && (
+            {ahorro > 0 && (
               <p className="flex justify-between text-sm text-brand-red">
                 <span>Descuento de socio</span>
                 <span className="font-medium tabular-nums">− {formatearMonto(ahorro)}</span>
@@ -140,14 +135,14 @@ export function CarritoDrawer() {
 
             <Link
               href="/tienda/checkout"
-              onClick={() => setCarritoAbierto(false)}
+              onClick={() => setAbierto(false)}
               className={cn(buttonVariants({ size: "lg" }), "h-12 text-base")}
             >
               Finalizar compra
             </Link>
             <button
               type="button"
-              onClick={() => setCarritoAbierto(false)}
+              onClick={() => setAbierto(false)}
               className="text-sm font-medium text-muted-foreground underline-offset-4 hover:underline"
             >
               Seguir comprando

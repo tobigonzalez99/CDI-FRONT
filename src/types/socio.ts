@@ -11,6 +11,8 @@ export interface TipoSocio {
   descripcion: string | null;
   montoCuota: number | null;
   activo: boolean;
+  /** Descuento en la tienda, de 0 a 100. Solo con la cuota al día. */
+  descuentoTienda: number;
 }
 
 /** HU-08: condición administrativa del socio (Alta / Baja). */

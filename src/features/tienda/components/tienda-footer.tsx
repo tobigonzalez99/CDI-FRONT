@@ -1,13 +1,16 @@
 import Link from "next/link";
-import { Store, Undo2 } from "lucide-react";
+import { Undo2 } from "lucide-react";
 
 import { ClubLogo } from "@/components/shared/club-logo";
-import { RETIRO, VENDEDOR } from "@/features/tienda/maqueta/datos";
+import { Retiro } from "@/features/tienda/components/retiro";
+import { direccionSede, siteConfig } from "@/lib/site-config";
 
 /**
  * Pie de la tienda, con lo que la ley pide a la vista en una venta online:
  * botón de arrepentimiento (Res. 424/2020), enlace a Defensa del Consumidor
  * (Res. 38/2020), los datos de quien vende y los términos.
+ *
+ * Falta el CUIT del club: no se inventa, se suma cuando el club lo pase.
  */
 export function TiendaFooter() {
   return (
@@ -20,30 +23,18 @@ export function TiendaFooter() {
               <span className="block text-xs tracking-[0.2em] text-white/60 uppercase">
                 Tienda oficial
               </span>
-              <span className="block font-bold">Club Deportivo Independencia</span>
+              <span className="block font-bold">{siteConfig.name}</span>
             </span>
           </div>
-          <p className="mt-4 flex items-start gap-2 text-sm text-white/70">
-            <Store className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span>
-              Retiro en {RETIRO.lugar.toLowerCase()}: {RETIRO.direccion}.
-              <br />
-              {RETIRO.horarios}.
-            </span>
-          </p>
+          <Retiro compacto className="mt-4 text-white/70" />
         </div>
 
         <div>
           <h2 className="text-sm font-semibold">Ayuda</h2>
           <ul className="mt-3 space-y-2 text-sm text-white/70">
             <li>
-              <Link href="/tienda/pedido/T-0142" className="hover:text-white">
-                Seguir mi pedido
-              </Link>
-            </li>
-            <li>
               <Link href="/tienda/productos" className="hover:text-white">
-                Guía de talles
+                Todos los productos
               </Link>
             </li>
             <li>
@@ -78,9 +69,9 @@ export function TiendaFooter() {
             </a>
           </p>
           <p className="text-xs text-white/50">
-            {VENDEDOR.razonSocial} · CUIT {VENDEDOR.cuit}
+            {siteConfig.name}
             <br />
-            {VENDEDOR.domicilio}
+            {direccionSede}
           </p>
         </div>
       </div>

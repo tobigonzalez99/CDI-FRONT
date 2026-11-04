@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Menu } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -13,34 +14,42 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { TarjetaProducto } from "@/features/tienda/components/tarjeta-producto";
-import { CATEGORIAS, PRODUCTOS, categoriaPorSlug, stockTotal } from "@/features/tienda/maqueta/datos";
+import { ErrorConsulta } from "@/components/shared/estado-consulta";
+import {
+  TarjetaProducto,
+  TarjetaProductoCargando,
+} from "@/features/tienda/components/tarjeta-producto";
+import { useCategoriasTienda, useProductosTienda } from "@/features/tienda/hooks/use-tienda";
+import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
+import { ORDENES_CATALOGO, type OrdenCatalogo } from "@/types/tienda";
 
-const TALLES = ["S", "M", "L", "XL", "XXL"];
+const POR_PAGINA = 24;
+
+/** Los talles de indumentaria más comunes; la API filtra los que tienen stock. */
+const TALLES = ["XS", "S", "M", "L", "XL", "XXL"];
 
 const RANGOS = [
-  { valor: "hasta-20", etiqueta: "Hasta $ 20.000", desde: 0, hasta: 20000 },
-  { valor: "20-50", etiqueta: "$ 20.000 a $ 50.000", desde: 20000, hasta: 50000 },
-  { valor: "mas-50", etiqueta: "Más de $ 50.000", desde: 50000, hasta: Infinity },
-];
+  { valor: "hasta-20", etiqueta: "Hasta $ 20.000", precioMax: 20000 },
+  { valor: "20-50", etiqueta: "$ 20.000 a $ 50.000", precioMin: 20000, precioMax: 50000 },
+  { valor: "mas-50", etiqueta: "Más de $ 50.000", precioMin: 50000 },
+] as const;
 
-const ORDENES = [
-  { valor: "destacados", etiqueta: "Destacados" },
-  { valor: "menor", etiqueta: "Menor precio" },
-  { valor: "mayor", etiqueta: "Mayor precio" },
-];
+const ETIQUETAS_ORDEN: Record<OrdenCatalogo, string> = {
+  relevancia: "Destacados",
+  nuevos: "Más nuevos",
+  "precio-asc": "Menor precio",
+  "precio-desc": "Mayor precio",
+};
 
 function Chip({
   activo,
   onClick,
   children,
-  tachado = false,
 }: {
   activo: boolean;
   onClick: () => void;
   children: React.ReactNode;
-  tachado?: boolean;
 }) {
   return (
     <button
@@ -49,10 +58,7 @@ function Chip({
       onClick={onClick}
       className={cn(
         "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-        activo
-          ? "border-brand-black bg-brand-black text-white"
-          : "hover:border-foreground/40",
-        tachado && "line-through",
+        activo ? "border-brand-black bg-brand-black text-white" : "hover:border-foreground/40",
       )}
     >
       {children}
@@ -60,55 +66,65 @@ function Chip({
   );
 }
 
-/** Filtros por categoría, talle y precio. En la URL, para poder compartir el enlace. */
+/** Grilla con filtros. Viven en la URL, para poder compartir el enlace. */
 export function Catalogo() {
   const router = useRouter();
   const params = useSearchParams();
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
+  const [texto, setTexto] = useState(params.get("buscar") ?? "");
+  const buscar = useDebounce(texto.trim());
 
   const categoria = params.get("categoria");
   const talle = params.get("talle");
-  const rango = params.get("precio");
-  const orden = params.get("orden") ?? "destacados";
+  const rango = RANGOS.find((item) => item.valor === params.get("precio"));
+  const ordenParam = params.get("orden");
+  const orden: OrdenCatalogo = ORDENES_CATALOGO.includes(ordenParam as OrdenCatalogo)
+    ? (ordenParam as OrdenCatalogo)
+    : "relevancia";
+  const pagina = Math.max(1, Number(params.get("pagina")) || 1);
+
+  const { data: categorias = [] } = useCategoriasTienda();
+  const { data, isPending, isError, error, refetch, isPlaceholderData } = useProductosTienda({
+    page: pagina,
+    pageSize: POR_PAGINA,
+    categoria: categoria ?? undefined,
+    talle: talle ?? undefined,
+    precioMin: rango && "precioMin" in rango ? rango.precioMin : undefined,
+    precioMax: rango && "precioMax" in rango ? rango.precioMax : undefined,
+    buscar: buscar || undefined,
+    orden,
+  });
 
   function cambiar(clave: string, valor: string | null) {
     const nuevos = new URLSearchParams(params);
     if (valor === null || nuevos.get(clave) === valor) nuevos.delete(clave);
     else nuevos.set(clave, valor);
-    router.replace(`/tienda/productos?${nuevos.toString()}`, { scroll: false });
+    // Cualquier cambio de filtro vuelve a la primera página.
+    if (clave !== "pagina") nuevos.delete("pagina");
+    router.replace(`/tienda/productos?${nuevos.toString()}`, { scroll: clave === "pagina" });
   }
 
-  const rangoElegido = RANGOS.find((item) => item.valor === rango);
-
-  const productos = PRODUCTOS.filter((producto) => !categoria || producto.categoria === categoria)
-    .filter(
-      (producto) =>
-        !talle || producto.talles.some((item) => item.talle === talle && item.stock > 0),
-    )
-    .filter(
-      (producto) =>
-        !rangoElegido ||
-        (producto.precio >= rangoElegido.desde && producto.precio < rangoElegido.hasta),
-    )
-    .sort((a, b) => {
-      // Lo agotado siempre al final: está para que se vea, no para tapar lo que hay.
-      const agotado = Number(stockTotal(a) === 0) - Number(stockTotal(b) === 0);
-      if (agotado !== 0) return agotado;
-      if (orden === "menor") return a.precio - b.precio;
-      if (orden === "mayor") return b.precio - a.precio;
-      return Number(Boolean(b.destacado)) - Number(Boolean(a.destacado));
-    });
+  function verTodos() {
+    setTexto("");
+    router.replace("/tienda/productos", { scroll: false });
+  }
 
   const cantidadFiltros = [categoria, talle, rango].filter(Boolean).length;
+  const hayFiltros = cantidadFiltros > 0 || Boolean(buscar);
+  const titulo = categoria
+    ? (categorias.find((item) => item.slug === categoria)?.nombre ?? "Productos")
+    : buscar
+      ? `Resultados para "${buscar}"`
+      : "Todos los productos";
 
   const filtros = (
     <div className="space-y-7">
       <fieldset>
         <legend className="text-sm font-semibold">Categoría</legend>
         <div className="mt-3 flex flex-wrap gap-2">
-          {CATEGORIAS.map((item) => (
+          {categorias.map((item) => (
             <Chip
-              key={item.slug}
+              key={item.id}
               activo={categoria === item.slug}
               onClick={() => cambiar("categoria", item.slug)}
             >
@@ -120,7 +136,9 @@ export function Catalogo() {
 
       <fieldset>
         <legend className="text-sm font-semibold">Talle</legend>
-        <p className="mt-1 text-xs text-muted-foreground">Solo camisetas e indumentaria.</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Muestra lo que tiene ese talle disponible.
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {TALLES.map((item) => (
             <Chip key={item} activo={talle === item} onClick={() => cambiar("talle", item)}>
@@ -136,7 +154,7 @@ export function Catalogo() {
           {RANGOS.map((item) => (
             <Chip
               key={item.valor}
-              activo={rango === item.valor}
+              activo={rango?.valor === item.valor}
               onClick={() => cambiar("precio", item.valor)}
             >
               {item.etiqueta}
@@ -146,8 +164,6 @@ export function Catalogo() {
       </fieldset>
     </div>
   );
-
-  const titulo = categoria ? (categoriaPorSlug(categoria)?.nombre ?? "Productos") : "Todos los productos";
 
   return (
     <div className="container mx-auto px-4 py-8 md:py-12">
@@ -174,12 +190,16 @@ export function Catalogo() {
           </Button>
           <div>
             <h1 className="font-heading text-3xl font-bold tracking-tight">{titulo}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {productos.length} {productos.length === 1 ? "producto" : "productos"}
-              {cantidadFiltros > 0 && (
+            <p className="mt-1 min-h-5 text-sm text-muted-foreground">
+              {data && `${data.total} ${data.total === 1 ? "producto" : "productos"}`}
+              {hayFiltros && (
                 <>
                   {" · "}
-                  <Link href="/tienda/productos" className="font-medium text-brand-red hover:underline">
+                  <Link
+                    href="/tienda/productos"
+                    onClick={() => setTexto("")}
+                    className="font-medium text-brand-red hover:underline"
+                  >
                     Ver todos los productos
                   </Link>
                 </>
@@ -188,43 +208,98 @@ export function Catalogo() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 text-sm">
-            <span className="hidden text-muted-foreground sm:inline">Ordenar</span>
-            <select
-              value={orden}
-              onChange={(evento) => cambiar("orden", evento.target.value)}
-              className="h-9 rounded-lg border bg-background px-2 text-sm"
-            >
-              {ORDENES.map((item) => (
-                <option key={item.valor} value={item.valor}>
-                  {item.etiqueta}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="relative flex-1 sm:w-56 sm:flex-none">
+            <Search
+              className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              aria-label="Buscar productos"
+              placeholder="Buscar"
+              value={texto}
+              onChange={(evento) => setTexto(evento.target.value)}
+              className="h-9 pl-9"
+            />
+          </div>
+
+          <select
+            value={orden}
+            aria-label="Ordenar"
+            onChange={(evento) =>
+              cambiar("orden", evento.target.value === "relevancia" ? null : evento.target.value)
+            }
+            className="h-9 rounded-lg border bg-background px-2 text-sm"
+          >
+            {ORDENES_CATALOGO.map((item) => (
+              <option key={item} value={item}>
+                {ETIQUETAS_ORDEN[item]}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
       <div className="mt-8">
-        {productos.length === 0 ? (
-          <div className="rounded-2xl border border-dashed py-16 text-center">
-            <p className="text-sm text-muted-foreground">
-              No hay productos con esos filtros.
-            </p>
-            <Button
-              variant="link"
-              onClick={() => router.replace("/tienda/productos", { scroll: false })}
-            >
-              Ver todos
-            </Button>
-          </div>
-        ) : (
+        {isError ? (
+          <ErrorConsulta error={error} onReintentar={() => void refetch()} />
+        ) : isPending ? (
           <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4">
-            {productos.map((producto) => (
-              <TarjetaProducto key={producto.slug} producto={producto} />
+            {Array.from({ length: 8 }, (_, indice) => (
+              <TarjetaProductoCargando key={indice} />
             ))}
           </div>
+        ) : data.data.length === 0 ? (
+          <div className="rounded-2xl border border-dashed py-16 text-center">
+            <p className="text-sm text-muted-foreground">
+              {hayFiltros
+                ? "No hay productos con esos filtros."
+                : "Todavía no hay productos publicados."}
+            </p>
+            {hayFiltros && (
+              <Button variant="link" onClick={verTodos}>
+                Ver todos
+              </Button>
+            )}
+          </div>
+        ) : (
+          <>
+            <div
+              className={cn(
+                "grid grid-cols-2 gap-x-4 gap-y-8 transition-opacity md:grid-cols-3 lg:grid-cols-4",
+                isPlaceholderData && "opacity-60",
+              )}
+            >
+              {data.data.map((producto) => (
+                <TarjetaProducto key={producto.id} producto={producto} />
+              ))}
+            </div>
+
+            {data.totalPages > 1 && (
+              <nav aria-label="Páginas" className="mt-10 flex items-center justify-center gap-3">
+                <Button
+                  variant="outline"
+                  disabled={pagina <= 1}
+                  onClick={() => cambiar("pagina", String(pagina - 1))}
+                >
+                  <ChevronLeft className="size-4" aria-hidden />
+                  Anterior
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Página {data.page} de {data.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={pagina >= data.totalPages}
+                  onClick={() => cambiar("pagina", String(pagina + 1))}
+                >
+                  Siguiente
+                  <ChevronRight className="size-4" aria-hidden />
+                </Button>
+              </nav>
+            )}
+          </>
         )}
       </div>
 
@@ -240,7 +315,7 @@ export function Catalogo() {
               variant="outline"
               className="h-11 flex-1"
               disabled={cantidadFiltros === 0}
-              onClick={() => router.replace("/tienda/productos", { scroll: false })}
+              onClick={verTodos}
             >
               Limpiar filtros
             </Button>

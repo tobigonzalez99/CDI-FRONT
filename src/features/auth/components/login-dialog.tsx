@@ -13,22 +13,28 @@ import { LoginForm } from "@/features/auth/components/login-form";
 interface LoginDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Desde la tienda: otro texto, y el comprador se queda en la página. */
+  enLaTienda?: boolean;
 }
 
 /** Acceso rápido desde la navbar. El formulario es el mismo que el de /login. */
-export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
+export function LoginDialog({ open, onOpenChange, enLaTienda = false }: LoginDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="items-center text-center">
           <ClubLogo className="h-14" />
-          <DialogTitle className="font-heading text-xl">Acceso de socios</DialogTitle>
+          <DialogTitle className="font-heading text-xl">
+            {enLaTienda ? "Ingresá a la tienda" : "Acceso de socios"}
+          </DialogTitle>
           <DialogDescription>
-            Ingresá con tu DNI y la contraseña que te entregó el club.
+            {enLaTienda
+              ? "Con tu DNI y tu contraseña de socio ves tu precio con descuento."
+              : "Ingresá con tu DNI y la contraseña que te entregó el club."}
           </DialogDescription>
         </DialogHeader>
 
-        <LoginForm onSuccess={() => onOpenChange(false)} />
+        <LoginForm onSuccess={() => onOpenChange(false)} enLaTienda={enLaTienda} />
       </DialogContent>
     </Dialog>
   );

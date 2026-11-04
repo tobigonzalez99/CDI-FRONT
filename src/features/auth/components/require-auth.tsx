@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 
 import { useSession } from "@/features/auth/hooks/use-session";
-import { ROUTES } from "@/lib/routes";
+import { inicioDelRol, ROUTES } from "@/lib/routes";
 import type { UserRole } from "@/types/auth";
 
 interface RequireAuthProps {
@@ -47,7 +47,7 @@ export function RequireAuth({
     }
     if (rolInsuficiente && user) {
       // No es su sección: se lo manda a la suya en vez de dejarlo en un 403.
-      router.replace(user.rol === "ADMIN" ? ROUTES.admin : ROUTES.perfil);
+      router.replace(inicioDelRol(user.rol));
     }
   }, [sinSesion, debeCambiarPassword, rolInsuficiente, user, router]);
 

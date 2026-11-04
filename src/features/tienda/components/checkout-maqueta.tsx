@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, Lock, ShoppingBag, Store } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { IlustracionProducto } from "@/features/tienda/components/ilustracion-producto";
-import { useMaqueta } from "@/features/tienda/maqueta/maqueta-context";
-import { RETIRO } from "@/features/tienda/maqueta/datos";
+import { useSession } from "@/features/auth/hooks/use-session";
+import { FotoProducto } from "@/features/tienda/components/foto-producto";
+import { useCarrito } from "@/features/tienda/carrito/carrito-context";
+import { useConfiguracionTienda } from "@/features/tienda/hooks/use-tienda";
 import { formatearMonto } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 
@@ -46,7 +46,7 @@ function Pasos({ actual }: { actual: number }) {
 }
 
 function Resumen() {
-  const { items, precioDe, subtotal, total, visitante } = useMaqueta();
+  const { items, precioDe, subtotal, total } = useCarrito();
   const ahorro = subtotal - total;
 
   return (
@@ -54,19 +54,24 @@ function Resumen() {
       <h2 className="font-heading text-lg font-bold">Tu pedido</h2>
       <ul className="mt-4 space-y-3">
         {items.map((item) => (
-          <li key={`${item.producto.slug}-${item.talle ?? ""}`} className="flex items-center gap-3">
+          <li key={item.varianteId} className="flex items-center gap-3">
             <div className="relative">
-              <IlustracionProducto ilustracion={item.producto.ilustraciones[0]} className="w-14 rounded-lg" />
+              <FotoProducto
+                imagen={item.imagenUrl ? { id: item.varianteId, url: item.imagenUrl, ancho: 1, alto: 1 } : null}
+                alt=""
+                sizes="56px"
+                className="w-14 rounded-lg"
+              />
               <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-brand-black text-[11px] font-bold text-white">
                 {item.cantidad}
               </span>
             </div>
             <div className="min-w-0 flex-1 text-sm">
-              <p className="truncate font-medium">{item.producto.nombre}</p>
+              <p className="truncate font-medium">{item.nombre}</p>
               {item.talle && <p className="text-xs text-muted-foreground">Talle {item.talle}</p>}
             </div>
             <p className="text-sm font-medium tabular-nums">
-              {formatearMonto(precioDe(item.producto) * item.cantidad)}
+              {formatearMonto(precioDe(item.precio) * item.cantidad)}
             </p>
           </li>
         ))}
@@ -77,7 +82,7 @@ function Resumen() {
           <dt className="text-muted-foreground">Subtotal</dt>
           <dd className="tabular-nums">{formatearMonto(subtotal)}</dd>
         </div>
-        {visitante === "socio" && ahorro > 0 && (
+        {ahorro > 0 && (
           <div className="flex justify-between text-brand-red">
             <dt>Descuento de socio</dt>
             <dd className="tabular-nums">− {formatearMonto(ahorro)}</dd>
@@ -111,13 +116,14 @@ function Campo({ id, etiqueta, ...props }: { id: string; etiqueta: string } & Re
  * el precio y reserva el stock al pasar al pago.
  */
 export function CheckoutMaqueta() {
-  const router = useRouter();
-  const { items, visitante, total, vaciar } = useMaqueta();
+  const { items, total } = useCarrito();
+  const { user } = useSession();
+  const { data: configuracion } = useConfiguracionTienda();
   const [paso, setPaso] = useState(0);
   const [retiraOtro, setRetiraOtro] = useState(false);
   const [acepta, setAcepta] = useState(false);
 
-  const socio = visitante === "socio";
+  const socio = user?.rol === "SOCIO" ? user : null;
 
   if (items.length === 0) {
     return (
@@ -125,7 +131,7 @@ export function CheckoutMaqueta() {
         <ShoppingBag className="size-10 text-muted-foreground" aria-hidden />
         <h1 className="font-heading text-2xl font-bold">Tu carrito está vacío</h1>
         <p className="text-sm text-muted-foreground">
-          En la maqueta, agregá algún producto para recorrer la compra.
+          Agregá algún producto para seguir con la compra.
         </p>
         <Link href="/tienda/productos" className={buttonVariants({ size: "lg" })}>
           Ver productos
@@ -147,13 +153,13 @@ export function CheckoutMaqueta() {
       <div className="mt-8 grid items-start gap-8 lg:grid-cols-[1fr_380px]">
         <div className="rounded-2xl border p-5 md:p-8">
           {paso === 0 && (
-            // La clave rearma los campos al cambiar "Ver como" en la maqueta.
-            <div key={visitante} className="space-y-5">
+            // La clave rearma los campos si se inicia o se cierra sesión.
+            <div key={user?.id ?? "invitado"} className="space-y-5">
               <div>
                 <h2 className="font-heading text-xl font-bold">Tus datos</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {socio
-                    ? "Los tomamos de tu ficha de socio. Revisá que el correo esté bien: ahí te avisamos cuando tu pedido esté listo."
+                    ? "Los tomamos de tu ficha de socio. Dejanos un correo: ahí te avisamos cuando tu pedido esté listo."
                     : "No hace falta crear una cuenta. Te mandamos por correo el enlace para seguir tu pedido."}
                 </p>
               </div>
@@ -164,16 +170,15 @@ export function CheckoutMaqueta() {
                 </p>
               )}
               <div className="grid gap-4 sm:grid-cols-2">
-                <Campo id="nombre" etiqueta="Nombre" defaultValue={socio ? "MARÍA" : ""} readOnly={socio} />
-                <Campo id="apellido" etiqueta="Apellido" defaultValue={socio ? "GONZÁLEZ" : ""} readOnly={socio} />
-                <Campo id="dni" etiqueta="DNI" inputMode="numeric" defaultValue={socio ? "30111222" : ""} readOnly={socio} />
-                <Campo id="telefono" etiqueta="Teléfono" type="tel" defaultValue={socio ? "+54 2983 55-1001" : ""} />
+                <Campo id="nombre" etiqueta="Nombre" defaultValue={socio?.nombre ?? ""} readOnly={Boolean(socio)} />
+                <Campo id="apellido" etiqueta="Apellido" defaultValue={socio?.apellido ?? ""} readOnly={Boolean(socio)} />
+                <Campo id="dni" etiqueta="DNI" inputMode="numeric" defaultValue={socio?.dni ?? ""} readOnly={Boolean(socio)} />
+                <Campo id="telefono" etiqueta="Teléfono" type="tel" />
                 <div className="sm:col-span-2">
                   <Campo
                     id="email"
                     etiqueta="Correo electrónico"
                     type="email"
-                    defaultValue={socio ? "maria.gonzalez@example.com" : ""}
                   />
                 </div>
               </div>
@@ -191,9 +196,13 @@ export function CheckoutMaqueta() {
               <div className="flex items-start gap-3 rounded-xl border-2 border-brand-black p-4">
                 <Store className="mt-0.5 size-5 shrink-0" aria-hidden />
                 <div className="text-sm">
-                  <p className="font-semibold">{RETIRO.lugar} · sin cargo</p>
-                  <p className="text-muted-foreground">{RETIRO.direccion}</p>
-                  <p className="text-muted-foreground">{RETIRO.horarios}</p>
+                  <p className="font-semibold">{configuracion?.retiroLugar || "En el club"} · sin cargo</p>
+                  {configuracion?.retiroDireccion && (
+                    <p className="text-muted-foreground">{configuracion.retiroDireccion}</p>
+                  )}
+                  {configuracion?.retiroHorarios && (
+                    <p className="text-muted-foreground">{configuracion.retiroHorarios}</p>
+                  )}
                   <p className="mt-2">Te avisamos por correo cuando tu pedido esté listo. Llevá tu DNI.</p>
                 </div>
               </div>
@@ -226,7 +235,7 @@ export function CheckoutMaqueta() {
               <dl className="grid gap-3 rounded-xl bg-muted p-4 text-sm sm:grid-cols-2">
                 <div>
                   <dt className="text-muted-foreground">Compra a nombre de</dt>
-                  <dd className="font-medium">{socio ? "MARÍA GONZÁLEZ · Socio N° 1" : "Invitado"}</dd>
+                  <dd className="font-medium">{socio ? `${socio.nombre} ${socio.apellido}` : "Invitado"}</dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Retiro</dt>
@@ -258,17 +267,13 @@ export function CheckoutMaqueta() {
                   dinero en cuenta. Guardamos tu pedido 30 minutos mientras pagás.
                 </p>
               </div>
-              <Button
-                size="lg"
-                className="h-12 w-full max-w-sm text-base"
-                onClick={() => {
-                  vaciar();
-                  router.push("/tienda/pedido/T-0143?nuevo=1");
-                }}
-              >
+              {/* El pedido y el pago se conectan en la tarea 2: hasta entonces no se compra. */}
+              <Button size="lg" className="h-12 w-full max-w-sm text-base" disabled>
                 Pagar
               </Button>
-              <p className="text-xs text-muted-foreground">En la maqueta no se cobra: te lleva al pedido.</p>
+              <p className="text-xs text-muted-foreground">
+                La compra todavía no está habilitada: se suma en la próxima etapa.
+              </p>
             </div>
           )}
 

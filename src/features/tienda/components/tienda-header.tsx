@@ -1,23 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogIn, Search, ShoppingBag, UserRound } from "lucide-react";
+import { LogIn, Search, ShoppingBag } from "lucide-react";
 
 import { ClubLogo } from "@/components/shared/club-logo";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { useMaqueta } from "@/features/tienda/maqueta/maqueta-context";
-import { CATEGORIAS } from "@/features/tienda/maqueta/datos";
+import { LoginDialog } from "@/features/auth/components/login-dialog";
+import { UserMenu } from "@/features/auth/components/user-menu";
+import { useSession } from "@/features/auth/hooks/use-session";
+import { useCarrito } from "@/features/tienda/carrito/carrito-context";
+import { useCategoriasTienda } from "@/features/tienda/hooks/use-tienda";
 import { cn } from "@/lib/utils";
-
-/** "Todos los productos" adelante: ver el catálogo completo no depende de abrir los filtros. */
-const SECCIONES = [
-  { href: "/tienda/productos", nombre: "Todos los productos" },
-  ...CATEGORIAS.map((categoria) => ({
-    href: `/tienda/productos?categoria=${categoria.slug}`,
-    nombre: categoria.nombre,
-  })),
-];
 
 /**
  * Encabezado propio de la tienda.
@@ -28,7 +23,19 @@ const SECCIONES = [
  */
 export function TiendaHeader() {
   const pathname = usePathname();
-  const { visitante, setVisitante, cantidadTotal, setCarritoAbierto } = useMaqueta();
+  const [loginAbierto, setLoginAbierto] = useState(false);
+  const { user, isPending } = useSession();
+  const { cantidadTotal, setAbierto } = useCarrito();
+  const { data: categorias = [] } = useCategoriasTienda();
+
+  /** "Todos los productos" adelante: ver el catálogo completo no depende de abrir los filtros. */
+  const secciones = [
+    { href: "/tienda/productos", nombre: "Todos los productos" },
+    ...categorias.map((categoria) => ({
+      href: `/tienda/productos?categoria=${categoria.slug}`,
+      nombre: categoria.nombre,
+    })),
+  ];
 
   return (
     <header className="sticky top-0 z-40 bg-brand-black text-white">
@@ -39,7 +46,8 @@ export function TiendaHeader() {
           className="flex shrink-0 items-center gap-2.5 rounded-md focus-visible:ring-2 focus-visible:ring-brand-red-soft focus-visible:outline-none"
         >
           <ClubLogo className="h-10" priority />
-          <span className="font-heading leading-none">
+          {/* En pantallas muy angostas queda solo el escudo, para que entren los botones. */}
+          <span className="font-heading leading-none max-[359px]:hidden">
             <span className="block text-[11px] font-medium tracking-[0.2em] text-white/60 uppercase">
               Tienda oficial
             </span>
@@ -47,19 +55,19 @@ export function TiendaHeader() {
           </span>
         </Link>
 
-        <nav aria-label="Categorías" className="mx-auto hidden items-center gap-1 md:flex">
-          {SECCIONES.map((seccion) => (
+        <nav aria-label="Categorías" className="mx-auto hidden items-center gap-1 lg:flex">
+          {secciones.map((seccion) => (
             <Link
               key={seccion.href}
               href={seccion.href}
-              className="rounded-md px-3 py-2 text-sm font-medium text-white/85 transition-colors hover:bg-white/10 hover:text-white"
+              className="rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap text-white/85 transition-colors hover:bg-white/10 hover:text-white"
             >
               {seccion.nombre}
             </Link>
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-1 md:ml-0">
+        <div className="ml-auto flex items-center gap-1 lg:ml-0">
           <Link
             href="/tienda/productos"
             aria-label="Buscar productos"
@@ -71,25 +79,14 @@ export function TiendaHeader() {
             <Search className="size-5" aria-hidden />
           </Link>
 
-          {visitante === "socio" ? (
-            <button
-              type="button"
-              onClick={() => setVisitante("invitado")}
-              title="En la maqueta: volver a ver la tienda como invitado"
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/10"
-            >
-              <UserRound className="size-5" aria-hidden />
-              <span className="hidden leading-tight sm:block">
-                <span className="block font-medium">María</span>
-                <span className="block text-[11px] text-white/60">Socio Activo</span>
-              </span>
-            </button>
+          {user ? (
+            <UserMenu user={user} enLaTienda />
           ) : (
             <Button
               variant="ghost"
               className="h-9 text-white hover:bg-white/10 hover:text-white"
-              onClick={() => setVisitante("socio")}
-              title="En la maqueta: ver la tienda como socio"
+              disabled={isPending}
+              onClick={() => setLoginAbierto(true)}
             >
               <LogIn className="size-4" aria-hidden />
               <span className="hidden sm:inline">Ingresar</span>
@@ -104,7 +101,7 @@ export function TiendaHeader() {
               pathname.startsWith("/tienda/checkout") && "pointer-events-none opacity-40",
             )}
             aria-label={`Abrir el carrito, ${cantidadTotal} productos`}
-            onClick={() => setCarritoAbierto(true)}
+            onClick={() => setAbierto(true)}
           >
             <ShoppingBag className="size-5" aria-hidden />
             {cantidadTotal > 0 && (
@@ -116,12 +113,12 @@ export function TiendaHeader() {
         </div>
       </div>
 
-      {/* En el teléfono las categorías van en una tira que se desliza. */}
+      {/* En el teléfono y la tableta las categorías van en una tira que se desliza. */}
       <nav
         aria-label="Categorías"
-        className="flex gap-2 overflow-x-auto border-t border-white/10 px-4 py-2 [scrollbar-width:none] md:hidden"
+        className="flex gap-2 overflow-x-auto border-t border-white/10 px-4 py-2 [scrollbar-width:none] lg:hidden"
       >
-        {SECCIONES.map((seccion) => (
+        {secciones.map((seccion) => (
           <Link
             key={seccion.href}
             href={seccion.href}
@@ -131,6 +128,8 @@ export function TiendaHeader() {
           </Link>
         ))}
       </nav>
+
+      <LoginDialog open={loginAbierto} onOpenChange={setLoginAbierto} enLaTienda />
     </header>
   );
 }

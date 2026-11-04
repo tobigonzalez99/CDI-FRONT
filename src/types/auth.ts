@@ -1,6 +1,7 @@
 import type { ApiError, ISODateString } from "./api";
 
-export const USER_ROLES = ["SOCIO", "ADMIN"] as const;
+/** TIENDA: operador de la tienda; ve solo el panel de la tienda. */
+export const USER_ROLES = ["SOCIO", "ADMIN", "TIENDA"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 /** HU-02: credenciales de acceso (DNI + contraseña). */

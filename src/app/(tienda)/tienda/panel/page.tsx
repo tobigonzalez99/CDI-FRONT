@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarrasDesglose } from "@/features/admin/components/barras-desglose";
 import { GraficoIngresosMes } from "@/features/admin/components/grafico-ingresos-mes";
-import { PRODUCTOS, VENTAS_POR_CATEGORIA, VENTAS_POR_MES, stockTotal } from "@/features/tienda/maqueta/datos";
+import { VENTAS_POR_CATEGORIA, VENTAS_POR_MES } from "@/features/tienda/maqueta/datos";
 import { formatearMonto } from "@/lib/formato";
 
 export const metadata: Metadata = { title: "Ventas" };
@@ -35,11 +35,6 @@ const MAS_VENDIDOS = [
 export default function PanelVentasPage() {
   const delMes = VENTAS_POR_MES.at(-1)!;
   const mesAnterior = VENTAS_POR_MES.at(-2)!;
-  const pocoStock = PRODUCTOS.filter((producto) => {
-    const stock = stockTotal(producto);
-    return stock > 0 && stock <= 5;
-  });
-  const agotados = PRODUCTOS.filter((producto) => stockTotal(producto) === 0);
 
   return (
     <div className="space-y-6">
@@ -95,31 +90,6 @@ export default function PanelVentasPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-heading text-base">Stock para reponer</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-6 sm:grid-cols-2">
-          <div>
-            <p className="text-sm font-semibold">Sin stock</p>
-            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-              {agotados.map((producto) => (
-                <li key={producto.slug}>{producto.nombre}</li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <p className="text-sm font-semibold">Quedan pocas (5 o menos)</p>
-            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-              {pocoStock.map((producto) => (
-                <li key={producto.slug}>
-                  {producto.nombre} · {stockTotal(producto)}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

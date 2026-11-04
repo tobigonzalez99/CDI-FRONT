@@ -20,10 +20,12 @@ const CAMPOS = ["dni", "password"] as const;
 interface LoginFormProps {
   /** Lo usa el modal para cerrarse; en la página /login no hace falta. */
   onSuccess?: () => void;
+  /** Desde la tienda: no lo saca de la página en la que está. */
+  enLaTienda?: boolean;
 }
 
 /** HU-02: ingreso con DNI y contraseña. Compartido por el modal y /login. */
-export function LoginForm({ onSuccess }: LoginFormProps) {
+export function LoginForm({ onSuccess, enLaTienda = false }: LoginFormProps) {
   const dniId = useId();
   const passwordId = useId();
 
@@ -38,7 +40,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     defaultValues: { dni: "", password: "" },
   });
 
-  const { mutateAsync: iniciarSesion } = useLogin();
+  const { mutateAsync: iniciarSesion } = useLogin({ enLaTienda });
 
   const onSubmit: SubmitHandler<LoginFormValues> = async (valores) => {
     try {

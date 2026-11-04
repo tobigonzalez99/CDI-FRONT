@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, LogOut, User } from "lucide-react";
+import { LayoutDashboard, LogOut, Store, User } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -19,9 +19,12 @@ function iniciales(user: AuthUser): string {
 }
 
 /** Menú de la sesión activa en la navbar. */
-export function UserMenu({ user }: { user: AuthUser }) {
-  const { mutate: cerrarSesion, isPending } = useLogout();
+export function UserMenu({ user, enLaTienda = false }: { user: AuthUser; enLaTienda?: boolean }) {
+  const { mutate: cerrarSesion, isPending } = useLogout({
+    destino: enLaTienda ? ROUTES.tienda : ROUTES.home,
+  });
   const esAdmin = user.rol === "ADMIN";
+  const esOperador = user.rol === "TIENDA";
 
   return (
     <DropdownMenu>
@@ -48,13 +51,13 @@ export function UserMenu({ user }: { user: AuthUser }) {
             {user.nombre} {user.apellido}
           </p>
           <p className="text-xs text-muted-foreground">
-            {esAdmin ? "Administración" : `DNI ${user.dni}`}
+            {esAdmin ? "Administración" : esOperador ? "Tienda" : `DNI ${user.dni}`}
           </p>
         </div>
 
         <DropdownMenuSeparator />
 
-        {esAdmin ? (
+        {esAdmin && (
           <DropdownMenuItem
             render={
               <Link href={ROUTES.admin}>
@@ -63,7 +66,18 @@ export function UserMenu({ user }: { user: AuthUser }) {
               </Link>
             }
           />
-        ) : (
+        )}
+        {(esAdmin || esOperador) && (
+          <DropdownMenuItem
+            render={
+              <Link href={ROUTES.tiendaPanel}>
+                <Store className="size-4" aria-hidden />
+                Panel de la tienda
+              </Link>
+            }
+          />
+        )}
+        {!esAdmin && !esOperador && (
           <DropdownMenuItem
             render={
               <Link href={ROUTES.perfil}>

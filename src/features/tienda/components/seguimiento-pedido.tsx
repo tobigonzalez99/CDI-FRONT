@@ -1,6 +1,6 @@
 import { Check, CircleCheck, Store } from "lucide-react";
 
-import { RETIRO } from "@/features/tienda/maqueta/datos";
+import { Retiro } from "@/features/tienda/components/retiro";
 import { formatearMonto } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 
@@ -72,8 +72,7 @@ export function SeguimientoPedido({ codigo, nuevo }: { codigo: string; nuevo: bo
             <Store className="size-4" aria-hidden />
             Dónde retirar
           </p>
-          <p className="mt-2 text-muted-foreground">{RETIRO.direccion}</p>
-          <p className="text-muted-foreground">{RETIRO.horarios}</p>
+          <Retiro compacto className="mt-2 text-muted-foreground" />
         </div>
         <div className="rounded-2xl border p-5 text-sm">
           <p className="font-semibold">Resumen</p>

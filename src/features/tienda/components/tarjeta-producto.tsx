@@ -1,22 +1,23 @@
 import Link from "next/link";
 
-import { IlustracionProducto } from "@/features/tienda/components/ilustracion-producto";
+import { FotoProducto } from "@/features/tienda/components/foto-producto";
 import { AvisoStock, Precio } from "@/features/tienda/components/precio";
-import { stockTotal, type ProductoTienda } from "@/features/tienda/maqueta/datos";
 import { cn } from "@/lib/utils";
+import type { ProductoResumen } from "@/types/tienda";
 
 /**
  * Producto en una grilla: foto grande, nombre y precio. Toda la tarjeta lleva
  * a la ficha, que es donde se elige el talle.
  */
-export function TarjetaProducto({ producto }: { producto: ProductoTienda }) {
-  const agotado = stockTotal(producto) === 0;
+export function TarjetaProducto({ producto }: { producto: ProductoResumen }) {
+  const agotado = producto.disponibilidad === "SIN_STOCK";
 
   return (
     <article className="group relative flex flex-col">
       <div className="relative overflow-hidden rounded-xl">
-        <IlustracionProducto
-          ilustracion={producto.ilustraciones[0]}
+        <FotoProducto
+          imagen={producto.imagen}
+          alt={producto.nombre}
           className={cn(
             "transition-transform duration-300 group-hover:scale-[1.03]",
             agotado && "opacity-50 grayscale",
@@ -29,7 +30,7 @@ export function TarjetaProducto({ producto }: { producto: ProductoTienda }) {
               Nuevo
             </span>
           )}
-          <AvisoStock producto={producto} />
+          <AvisoStock disponibilidad={producto.disponibilidad} />
         </div>
       </div>
 
@@ -45,5 +46,16 @@ export function TarjetaProducto({ producto }: { producto: ProductoTienda }) {
         <Precio producto={producto} />
       </div>
     </article>
+  );
+}
+
+/** Lugar de una tarjeta mientras carga, para que la grilla no salte. */
+export function TarjetaProductoCargando() {
+  return (
+    <div className="animate-pulse" aria-hidden>
+      <div className="aspect-square rounded-xl bg-neutral-100" />
+      <div className="mt-3 h-4 w-3/4 rounded bg-neutral-100" />
+      <div className="mt-2 h-5 w-1/3 rounded bg-neutral-100" />
+    </div>
   );
 }

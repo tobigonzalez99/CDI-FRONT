@@ -12,11 +12,16 @@ import {
   pedirRecuperacion,
 } from "@/features/auth/api/auth.api";
 import { SESSION_QUERY_KEY, escribirSesion } from "@/features/auth/hooks/use-session";
-import { destinoTrasLogin, ROUTES } from "@/lib/routes";
+import { destinoTrasLogin, destinoTrasLoginEnTienda, ROUTES } from "@/lib/routes";
 import type { Session } from "@/types/auth";
 
-/** HU-02: login y redirección según rol y contraseña pendiente. */
-export function useLogin() {
+/**
+ * HU-02: login y redirección según rol y contraseña pendiente.
+ *
+ * `enLaTienda`: el comprador se queda en la página en la que estaba (ver
+ * `destinoTrasLoginEnTienda`).
+ */
+export function useLogin({ enLaTienda = false }: { enLaTienda?: boolean } = {}) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -24,7 +29,10 @@ export function useLogin() {
     mutationFn: login,
     onSuccess: (data) => {
       escribirSesion(queryClient, data);
-      router.replace(destinoTrasLogin(data.user));
+      const destino = enLaTienda
+        ? destinoTrasLoginEnTienda(data.user)
+        : destinoTrasLogin(data.user);
+      if (destino) router.replace(destino);
       // El layout del destino se renderiza en el servidor y lee la cookie:
       // sin esto podría servirse una versión cacheada sin sesión.
       router.refresh();
@@ -32,7 +40,8 @@ export function useLogin() {
   });
 }
 
-export function useLogout() {
+/** `destino`: adonde va después; desde la tienda, el inicio de la tienda. */
+export function useLogout({ destino = ROUTES.home }: { destino?: string } = {}) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -42,7 +51,7 @@ export function useLogout() {
     onSettled: () => {
       queryClient.setQueryData(SESSION_QUERY_KEY, null);
       queryClient.clear();
-      router.replace(ROUTES.home);
+      router.replace(destino);
       router.refresh();
     },
   });

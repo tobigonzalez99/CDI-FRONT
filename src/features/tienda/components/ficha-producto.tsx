@@ -2,103 +2,82 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Ruler, ShoppingBag, Store } from "lucide-react";
+import { ChevronRight, PackageX, ShoppingBag } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { IlustracionProducto } from "@/features/tienda/components/ilustracion-producto";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Cargando, ErrorConsulta } from "@/components/shared/estado-consulta";
+import { ContenidoMarkdown } from "@/features/paginas/components/contenido-markdown";
+import { FotoProducto } from "@/features/tienda/components/foto-producto";
 import { AvisoStock, Precio } from "@/features/tienda/components/precio";
-import { useMaqueta } from "@/features/tienda/maqueta/maqueta-context";
-import {
-  POCAS_UNIDADES,
-  RETIRO,
-  categoriaPorSlug,
-  stockTotal,
-  type ProductoTienda,
-} from "@/features/tienda/maqueta/datos";
+import { Retiro } from "@/features/tienda/components/retiro";
+import { TarjetaProducto } from "@/features/tienda/components/tarjeta-producto";
+import { useCarrito } from "@/features/tienda/carrito/carrito-context";
+import { useProductosTienda, useProductoTienda } from "@/features/tienda/hooks/use-tienda";
+import { esApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
+import type { ProductoDetalle } from "@/types/tienda";
 
-const MEDIDAS = [
-  { talle: "S", pecho: "96", largo: "70" },
-  { talle: "M", pecho: "102", largo: "72" },
-  { talle: "L", pecho: "108", largo: "74" },
-  { talle: "XL", pecho: "114", largo: "76" },
-  { talle: "XXL", pecho: "120", largo: "78" },
-];
+function Relacionados({ producto }: { producto: ProductoDetalle }) {
+  const { data } = useProductosTienda({ categoria: producto.categoria.slug, pageSize: 5 });
+  const otros = (data?.data ?? [])
+    .filter((item) => item.id !== producto.id && item.disponibilidad !== "SIN_STOCK")
+    .slice(0, 4);
 
-function GuiaTalles({ open, onOpenChange }: { open: boolean; onOpenChange: (abierto: boolean) => void }) {
+  if (otros.length === 0) return null;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-heading">Guía de talles</DialogTitle>
-          <DialogDescription>
-            Medidas de la prenda en centímetros, tomadas con la prenda apoyada. Si estás
-            entre dos talles, elegí el más grande.
-          </DialogDescription>
-        </DialogHeader>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left text-muted-foreground">
-              <th className="py-2 font-medium">Talle</th>
-              <th className="py-2 font-medium">Ancho de pecho</th>
-              <th className="py-2 font-medium">Largo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {MEDIDAS.map((medida) => (
-              <tr key={medida.talle} className="border-b last:border-0">
-                <td className="py-2 font-semibold">{medida.talle}</td>
-                <td className="py-2 tabular-nums">{medida.pecho} cm</td>
-                <td className="py-2 tabular-nums">{medida.largo} cm</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </DialogContent>
-    </Dialog>
+    <section className="container mx-auto mt-6 px-4">
+      <h2 className="font-heading text-2xl font-bold tracking-tight">También te puede gustar</h2>
+      <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-4">
+        {otros.map((item) => (
+          <TarjetaProducto key={item.id} producto={item} />
+        ))}
+      </div>
+    </section>
   );
 }
 
-export function FichaProducto({ producto }: { producto: ProductoTienda }) {
-  const { agregar } = useMaqueta();
+function Ficha({ producto }: { producto: ProductoDetalle }) {
+  const { agregar } = useCarrito();
   const [foto, setFoto] = useState(0);
-  const [talle, setTalle] = useState<string | null>(null);
-  const [guiaAbierta, setGuiaAbierta] = useState(false);
+  const [varianteId, setVarianteId] = useState<string | null>(null);
   const [faltaTalle, setFaltaTalle] = useState(false);
 
-  const conTalle = producto.talles.length > 0;
-  const agotado = stockTotal(producto) === 0;
-  const talleElegido = producto.talles.find((item) => item.talle === talle);
-  const categoria = categoriaPorSlug(producto.categoria);
+  const agotado = producto.disponibilidad === "SIN_STOCK";
+  const imagenes = producto.imagenes;
+  const elegida = producto.variantes.find((variante) => variante.id === varianteId);
 
   function alAgregar() {
-    if (conTalle && !talle) {
+    // Sin talles hay una sola variante y se compra directo.
+    const variante = producto.tieneTalles ? elegida : producto.variantes[0];
+    if (!variante) {
       setFaltaTalle(true);
       return;
     }
-    agregar(producto, talle ?? undefined);
+    agregar({
+      varianteId: variante.id,
+      slug: producto.slug,
+      nombre: producto.nombre,
+      talle: variante.talle,
+      precio: producto.precio,
+      imagenUrl: imagenes[0]?.url ?? null,
+    });
   }
 
   return (
     <div className="container mx-auto px-4 py-6 md:py-10">
       <nav aria-label="Migas de pan" className="mb-6 flex items-center gap-1 text-xs text-muted-foreground">
-        <Link href="/tienda" className="hover:text-foreground">Tienda</Link>
+        <Link href="/tienda" className="hover:text-foreground">
+          Tienda
+        </Link>
         <ChevronRight className="size-3" aria-hidden />
-        {categoria && (
-          <>
-            <Link href={`/tienda/productos?categoria=${categoria.slug}`} className="hover:text-foreground">
-              {categoria.nombre}
-            </Link>
-            <ChevronRight className="size-3" aria-hidden />
-          </>
-        )}
+        <Link
+          href={`/tienda/productos?categoria=${producto.categoria.slug}`}
+          className="hover:text-foreground"
+        >
+          {producto.categoria.nombre}
+        </Link>
+        <ChevronRight className="size-3" aria-hidden />
         <span className="truncate text-foreground">{producto.nombre}</span>
       </nav>
 
@@ -106,19 +85,21 @@ export function FichaProducto({ producto }: { producto: ProductoTienda }) {
         {/* Galería: la foto grande y, abajo, las miniaturas para cambiarla. */}
         <div className="space-y-3">
           <div className="relative overflow-hidden rounded-2xl">
-            <IlustracionProducto
-              ilustracion={producto.ilustraciones[foto]}
-              toma={foto}
+            <FotoProducto
+              imagen={imagenes[foto] ?? null}
+              alt={producto.nombre}
+              priority
+              sizes="(min-width: 768px) 50vw, 100vw"
               className={cn(agotado && "opacity-50 grayscale")}
             />
-            <AvisoStock producto={producto} className="absolute top-3 left-3" />
+            <AvisoStock disponibilidad={producto.disponibilidad} className="absolute top-3 left-3" />
           </div>
 
-          {producto.ilustraciones.length > 1 && (
-            <div className="flex gap-3">
-              {producto.ilustraciones.map((ilustracion, indice) => (
+          {imagenes.length > 1 && (
+            <div className="flex flex-wrap gap-3">
+              {imagenes.map((imagen, indice) => (
                 <button
-                  key={indice}
+                  key={imagen.id}
                   type="button"
                   aria-label={`Ver la foto ${indice + 1}`}
                   aria-pressed={foto === indice}
@@ -128,7 +109,7 @@ export function FichaProducto({ producto }: { producto: ProductoTienda }) {
                     foto === indice ? "ring-2 ring-brand-black" : "opacity-70 hover:opacity-100",
                   )}
                 >
-                  <IlustracionProducto ilustracion={ilustracion} toma={indice} />
+                  <FotoProducto imagen={imagen} alt="" sizes="80px" />
                 </button>
               ))}
             </div>
@@ -145,45 +126,37 @@ export function FichaProducto({ producto }: { producto: ProductoTienda }) {
             <p className="mt-1 text-xs text-muted-foreground">Precio final, con impuestos incluidos.</p>
           </div>
 
-          {conTalle && (
+          {producto.tieneTalles && !agotado && (
             <fieldset className="mt-8">
-              <div className="flex items-center justify-between">
-                <legend className="text-sm font-semibold">
-                  Talle{talle && <span className="font-normal text-muted-foreground"> · {talle}</span>}
-                </legend>
-                <button
-                  type="button"
-                  onClick={() => setGuiaAbierta(true)}
-                  className="flex items-center gap-1 text-sm font-medium underline-offset-4 hover:underline"
-                >
-                  <Ruler className="size-4" aria-hidden />
-                  Guía de talles
-                </button>
-              </div>
+              <legend className="text-sm font-semibold">
+                Talle
+                {elegida && <span className="font-normal text-muted-foreground"> · {elegida.talle}</span>}
+              </legend>
 
-              <div className="mt-3 grid grid-cols-5 gap-2">
-                {producto.talles.map((item) => {
-                  const sinStock = item.stock === 0;
+              <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-5">
+                {producto.variantes.map((variante) => {
+                  const sinStock = variante.disponibilidad === "SIN_STOCK";
                   return (
                     <button
-                      key={item.talle}
+                      key={variante.id}
                       type="button"
                       disabled={sinStock}
-                      aria-pressed={talle === item.talle}
-                      aria-label={sinStock ? `Talle ${item.talle}, sin stock` : `Talle ${item.talle}`}
+                      aria-pressed={varianteId === variante.id}
+                      aria-label={sinStock ? `Talle ${variante.talle}, sin stock` : `Talle ${variante.talle}`}
                       onClick={() => {
-                        setTalle(item.talle);
+                        setVarianteId(variante.id);
                         setFaltaTalle(false);
                       }}
                       className={cn(
                         "h-12 rounded-lg border text-sm font-semibold transition-colors",
-                        talle === item.talle
+                        varianteId === variante.id
                           ? "border-brand-black bg-brand-black text-white"
                           : "hover:border-foreground/50",
-                        sinStock && "cursor-not-allowed border-dashed bg-muted text-muted-foreground line-through",
+                        sinStock &&
+                          "cursor-not-allowed border-dashed bg-muted text-muted-foreground line-through",
                       )}
                     >
-                      {item.talle}
+                      {variante.talle}
                     </button>
                   );
                 })}
@@ -198,8 +171,8 @@ export function FichaProducto({ producto }: { producto: ProductoTienda }) {
               >
                 {faltaTalle
                   ? "Elegí un talle para agregarlo al carrito."
-                  : talleElegido && talleElegido.stock <= POCAS_UNIDADES
-                    ? `Quedan ${talleElegido.stock} en talle ${talleElegido.talle}.`
+                  : elegida?.disponibilidad === "ULTIMAS_UNIDADES"
+                    ? `Últimas unidades en talle ${elegida.talle}.`
                     : ""}
               </p>
             </fieldset>
@@ -210,7 +183,7 @@ export function FichaProducto({ producto }: { producto: ProductoTienda }) {
               <div className="rounded-xl border border-dashed p-4 text-center">
                 <p className="font-semibold">Sin stock</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Este producto se agotó. Mirá los demás de {categoria?.nombre.toLowerCase()}.
+                  Este producto se agotó. Mirá los demás de {producto.categoria.nombre.toLowerCase()}.
                 </p>
               </div>
             ) : (
@@ -221,21 +194,54 @@ export function FichaProducto({ producto }: { producto: ProductoTienda }) {
             )}
           </div>
 
-          <p className="mt-4 flex items-start gap-2 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
-            <Store className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span>
-              Retiro en {RETIRO.lugar.toLowerCase()}, {RETIRO.direccion}. {RETIRO.horarios}.
-            </span>
-          </p>
+          <Retiro className="mt-4 rounded-lg bg-muted p-3 text-muted-foreground" />
 
-          <div className="mt-8 border-t pt-6">
-            <h2 className="text-sm font-semibold">Descripción</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{producto.descripcion}</p>
-          </div>
+          {producto.descripcion.trim() && (
+            <div className="mt-8 border-t pt-6">
+              <h2 className="text-sm font-semibold">Descripción</h2>
+              <ContenidoMarkdown
+                texto={producto.descripcion}
+                className="mx-0 mt-2 max-w-none space-y-3 text-sm text-muted-foreground"
+              />
+            </div>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
 
-      <GuiaTalles open={guiaAbierta} onOpenChange={setGuiaAbierta} />
+export function FichaProducto({ slug }: { slug: string }) {
+  const { data, isPending, isError, error, refetch } = useProductoTienda(slug);
+
+  if (isPending) return <Cargando etiqueta="Cargando el producto…" />;
+
+  if (isError) {
+    if (esApiError(error) && error.status === 404) {
+      return (
+        <div className="container mx-auto flex max-w-md flex-col items-center gap-4 px-4 py-20 text-center">
+          <PackageX className="size-10 text-muted-foreground" aria-hidden />
+          <h1 className="font-heading text-2xl font-bold">Este producto ya no está</h1>
+          <p className="text-sm text-muted-foreground">
+            Puede que se haya dejado de vender. Mirá los demás productos de la tienda.
+          </p>
+          <Link href="/tienda/productos" className={buttonVariants({ size: "lg" })}>
+            Ver todos los productos
+          </Link>
+        </div>
+      );
+    }
+    return (
+      <div className="container mx-auto px-4 py-10">
+        <ErrorConsulta error={error} onReintentar={() => void refetch()} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="pb-16">
+      <Ficha producto={data} />
+      <Relacionados producto={data} />
     </div>
   );
 }
