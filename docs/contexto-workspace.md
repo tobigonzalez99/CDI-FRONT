@@ -752,8 +752,51 @@ descuento y stock salen siempre de la base, nunca del carrito.
   pedido igual queda hecho.
 
 **Estados** (`EstadoPedido`): `PENDIENTE_PAGO` → `PAGADO` → `PREPARADO` (listo para
-retirar) → `RETIRADO`, y `CANCELADO`. Por ahora solo existen `PENDIENTE_PAGO` y
-`CANCELADO` (vencido); los demás los maneja el panel en la tarea 3.
+retirar) → `RETIRADO`, y `CANCELADO`.
+
+### Tienda online — gestión de pedidos (tarea 3, backend implementado)
+
+| Método | Ruta | Acceso | Notas |
+|---|---|---|---|
+| GET | `/tienda/admin/pedidos` | `ADMIN` y `TIENDA` | Paginado, los más nuevos primero. Filtros: `estado`, `buscar` (código, nombre, apellido o DNI del comprador). Suma `contadores`: cuántos hay por estado con la misma búsqueda, **sin** aplicar el filtro de `estado`, para las pestañas |
+| GET | `/tienda/admin/pedidos/:codigo` | `ADMIN` y `TIENDA` | Por código (`T-0042`) |
+| POST | `/tienda/admin/pedidos/:codigo/estado` | `ADMIN` y `TIENDA` | `{ estado, motivo? }` → `200` con el `PedidoAdmin` actualizado |
+
+`PedidoAdmin` es el `Pedido` más lo que hace falta para entregarlo: `comprador.dni`,
+`retiro.retiraOtraPersonaDni`, `esSocio` e `historial[].registradoPor` (nombre de quien
+lo cambió; `null` si fue el comprador o el sistema). **El DNI sale solo por estos
+endpoints:** el seguimiento público sigue sin mostrarlo.
+
+| Desde | Puede pasar a |
+|---|---|
+| `PENDIENTE_PAGO` | `PAGADO`, `CANCELADO` |
+| `PAGADO` | `PREPARADO`, `RETIRADO`, `CANCELADO` |
+| `PREPARADO` | `RETIRADO`, `CANCELADO` |
+| `RETIRADO`, `CANCELADO` | Nada: lo terminado no se reabre |
+
+- **De `PAGADO` se puede ir directo a `RETIRADO`.** Mientras se pague en el club, quien
+  paga en el mostrador se lo lleva en el momento: un "ya está listo" no tendría sentido.
+- **Un cambio que no corresponde responde `409 CONFLICT`** con un mensaje que dice en qué
+  estado está el pedido. El pedido se bloquea antes de mirar su estado: si dos personas
+  aplican lo mismo a la vez pasa una, y lo mismo si el control de vencidos llega primero.
+- **Cada cambio queda en `historial`** con quién lo hizo.
+- **Cancelar exige `motivo`** (`fieldErrors.motivo`, hasta 300 caracteres), que ve el
+  comprador, y **devuelve el stock** (movimiento `CANCELACION`, con el operador).
+- **Pagar y cancelar sacan `venceEn`:** ya no hay reserva que pueda vencer.
+- **El panel no mueve plata.** Marcar `PAGADO` no registra el medio de pago, y cancelar
+  un pedido pagado no devuelve el dinero: el correo manda al comprador a la
+  administración del club. La devolución real llega con la pasarela (tarea 6).
+- **Un correo por cambio**, después del commit. Si falla, el cambio igual queda hecho:
+
+  | Estado | Correo |
+  |---|---|
+  | `PAGADO` | "Recibimos el pago de tu pedido T-0042" |
+  | `PREPARADO` | "Tu pedido T-0042 está listo para retirar" (dónde, cuándo y quién retira) |
+  | `RETIRADO` | "Retiraste tu pedido T-0042" |
+  | `CANCELADO` | "Tu pedido T-0042 se canceló", con el motivo |
+
+  Estos correos no llevan el enlace de seguimiento: en la base se guarda solo su hash, así
+  que no se puede volver a armar.
 
 ### Disciplinas (implementado)
 

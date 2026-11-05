@@ -12,12 +12,14 @@ import {
   eliminarTalle,
   borrarImagen,
   cambiarEstadoOperador,
+  cambiarEstadoPedido,
   crearCategoria,
   crearOperador,
   crearProducto,
   listarCategoriasAdmin,
   listarMovimientos,
   listarOperadores,
+  listarPedidosAdmin,
   listarProductosAdmin,
   moverStock,
   obtenerConfiguracionAdmin,
@@ -27,10 +29,31 @@ import {
   subirImagenes,
 } from "@/features/tienda/api/tienda-admin.api";
 import { TIENDA_QUERY_KEY } from "@/features/tienda/hooks/use-tienda";
-import type { FiltrosProductosAdmin, ProductoAdmin } from "@/types/tienda";
+import type { EstadoPedido, FiltrosPedidosAdmin, FiltrosProductosAdmin, ProductoAdmin } from "@/types/tienda";
 
 const PANEL_KEY = [...TIENDA_QUERY_KEY, "panel"] as const;
 const PRODUCTOS_KEY = [...PANEL_KEY, "productos"] as const;
+
+export function usePedidosAdmin(filtros: FiltrosPedidosAdmin) {
+  return useQuery({
+    queryKey: [...PANEL_KEY, "pedidos", filtros],
+    queryFn: () => listarPedidosAdmin(filtros),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Refresca también si falla: otro operador pudo cambiar el pedido antes, y
+ * cancelar devuelve stock, por eso se invalida todo el panel.
+ */
+export function useCambiarEstadoPedido() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ codigo, ...input }: { codigo: string; estado: EstadoPedido; motivo?: string }) =>
+      cambiarEstadoPedido(codigo, input),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: PANEL_KEY }),
+  });
+}
 
 export function useCategoriasAdmin() {
   return useQuery({ queryKey: [...PANEL_KEY, "categorias"], queryFn: listarCategoriasAdmin });

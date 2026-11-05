@@ -6,11 +6,14 @@ import type {
   CategoriaTienda,
   ConfiguracionTienda,
   CrearProductoInput,
+  EstadoPedido,
+  FiltrosPedidosAdmin,
   FiltrosProductosAdmin,
   MovimientoStock,
   MovimientoStockInput,
   OperadorConPassword,
   OperadorTienda,
+  PedidoAdmin,
   ProductoAdmin,
 } from "@/types/tienda";
 
@@ -140,6 +143,26 @@ export async function ordenarImagenes(productoId: string, ids: string[]): Promis
 
 export async function borrarImagen(id: string): Promise<void> {
   await api.delete(`${BASE}/imagenes/${id}`);
+}
+
+// ----------------------------------------------------------------- Pedidos
+
+export async function listarPedidosAdmin(
+  filtros: FiltrosPedidosAdmin,
+): Promise<PaginatedResponse<PedidoAdmin> & { contadores: Record<EstadoPedido, number> }> {
+  const { data } = await api.get<
+    PaginatedResponse<PedidoAdmin> & { contadores: Record<EstadoPedido, number> }
+  >(`${BASE}/pedidos`, { params: filtros });
+  return data;
+}
+
+/** Cancelar lleva `motivo`: lo ve el comprador. */
+export async function cambiarEstadoPedido(
+  codigo: string,
+  input: { estado: EstadoPedido; motivo?: string },
+): Promise<PedidoAdmin> {
+  const { data } = await api.post<PedidoAdmin>(`${BASE}/pedidos/${codigo}/estado`, input);
+  return data;
 }
 
 // ----------------------------------------------------------- Configuración

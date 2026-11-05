@@ -100,6 +100,12 @@ export const tallesStockSchema = z
 
 export type TallesStockFormValues = z.infer<typeof tallesStockSchema>;
 
+export const cancelarPedidoSchema = z.object({
+  motivo: z.string().trim().min(3, "Contale al comprador por qué se cancela").max(300, "Hasta 300 caracteres"),
+});
+
+export type CancelarPedidoFormValues = z.infer<typeof cancelarPedidoSchema>;
+
 export const configuracionTiendaSchema = z.object({
   retiroLugar: z.string().trim().max(120, "Es muy largo"),
   retiroDireccion: z.string().trim().max(200, "Es muy largo"),

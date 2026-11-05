@@ -295,6 +295,22 @@ export interface Pedido {
   historial: { estado: EstadoPedido; fecha: ISODateString }[];
 }
 
+/** Un pedido en el panel: suma el DNI y quién hizo cada cambio. */
+export interface PedidoAdmin extends Omit<Pedido, "comprador" | "retiro" | "historial"> {
+  comprador: Pedido["comprador"] & { dni: string };
+  esSocio: boolean;
+  retiro: Pedido["retiro"] & { retiraOtraPersonaDni: string | null };
+  historial: (Pedido["historial"][number] & { registradoPor: string | null })[];
+}
+
+export interface FiltrosPedidosAdmin {
+  page: number;
+  pageSize: number;
+  estado?: EstadoPedido;
+  /** Código, nombre, apellido o DNI del comprador. */
+  buscar?: string;
+}
+
 export interface CompradorInput {
   nombre: string;
   apellido: string;
