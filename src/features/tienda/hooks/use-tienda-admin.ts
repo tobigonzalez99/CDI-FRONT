@@ -9,6 +9,7 @@ import {
   actualizarProducto,
   actualizarVariante,
   agregarTalle,
+  eliminarTalle,
   borrarImagen,
   cambiarEstadoOperador,
   crearCategoria,
@@ -113,6 +114,11 @@ export function useActualizarVariante() {
       actualizarVariante(id, input),
     onSuccess: alGuardar,
   });
+}
+
+export function useEliminarTalle() {
+  const alGuardar = useAlGuardarProducto();
+  return useMutation({ mutationFn: eliminarTalle, onSuccess: alGuardar });
 }
 
 export function useMoverStock() {

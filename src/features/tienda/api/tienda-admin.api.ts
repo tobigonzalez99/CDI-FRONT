@@ -91,6 +91,12 @@ export async function actualizarVariante(
   return data;
 }
 
+/** Sin ventas se borra; con ventas queda oculto y vuelve si se carga de nuevo. */
+export async function eliminarTalle(id: string): Promise<ProductoAdmin> {
+  const { data } = await api.delete<ProductoAdmin>(`${BASE}/variantes/${id}`);
+  return data;
+}
+
 /** Se suma al stock: positiva entra, negativa sale. */
 export async function moverStock(
   varianteId: string,

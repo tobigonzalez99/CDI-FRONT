@@ -133,7 +133,7 @@ function Ficha({ producto }: { producto: ProductoDetalle }) {
                 {elegida && <span className="font-normal text-muted-foreground"> · {elegida.talle}</span>}
               </legend>
 
-              <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-5">
+              <div className="mt-3 flex flex-wrap gap-2">
                 {producto.variantes.map((variante) => {
                   const sinStock = variante.disponibilidad === "SIN_STOCK";
                   return (
@@ -148,7 +148,7 @@ function Ficha({ producto }: { producto: ProductoDetalle }) {
                         setFaltaTalle(false);
                       }}
                       className={cn(
-                        "h-12 rounded-lg border text-sm font-semibold transition-colors",
+                        "h-12 min-w-14 rounded-lg border px-3 text-sm font-semibold transition-colors",
                         varianteId === variante.id
                           ? "border-brand-black bg-brand-black text-white"
                           : "hover:border-foreground/50",

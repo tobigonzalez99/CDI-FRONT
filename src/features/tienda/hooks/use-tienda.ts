@@ -8,6 +8,7 @@ import {
   crearPedido,
   listarCategorias,
   listarMisPedidos,
+  listarTalles,
   obtenerMiPedido,
   seguirPedido,
   listarProductos,
@@ -24,6 +25,14 @@ export function useCategoriasTienda() {
     queryKey: [...TIENDA_QUERY_KEY, "categorias"],
     queryFn: listarCategorias,
     staleTime: 5 * 60_000,
+  });
+}
+
+export function useTallesTienda() {
+  return useQuery({
+    queryKey: [...TIENDA_QUERY_KEY, "talles"],
+    queryFn: listarTalles,
+    staleTime: 60_000,
   });
 }
 

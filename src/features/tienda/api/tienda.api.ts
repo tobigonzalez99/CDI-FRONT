@@ -21,6 +21,12 @@ export async function listarCategorias(): Promise<CategoriaTienda[]> {
   return data;
 }
 
+/** Los talles con stock, en orden: el filtro ofrece solo lo que se puede comprar. */
+export async function listarTalles(): Promise<string[]> {
+  const { data } = await api.get<string[]>("/tienda/talles");
+  return data;
+}
+
 export async function listarProductos(
   filtros: FiltrosCatalogo = {},
 ): Promise<PaginatedResponse<ProductoResumen>> {

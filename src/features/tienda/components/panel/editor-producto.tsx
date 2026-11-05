@@ -187,7 +187,7 @@ export function EditorProducto({ id }: { id: string }) {
         <div className="space-y-6">
           <Seccion
             titulo={producto.tieneTalles ? "Talles y stock" : "Stock"}
-            descripcion="El stock cambia solo con un movimiento, que queda en el historial con quién lo cargó."
+            descripcion="Cargá el stock que tiene que quedar. Cada cambio queda en el historial con quién lo hizo."
           >
             <TallesYStock producto={producto} />
           </Seccion>

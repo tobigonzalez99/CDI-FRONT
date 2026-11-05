@@ -11,12 +11,12 @@ import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Campo, CLASES_SELECT, CLASES_TEXTAREA } from "@/features/tienda/components/panel/campo";
+import { SelectorTipoTalle } from "@/features/tienda/components/panel/selector-tipo-talle";
 import { useCategoriasAdmin, useCrearProducto } from "@/features/tienda/hooks/use-tienda-admin";
+import { aplicarTipoTalle, TALLES_SUGERIDOS } from "@/features/tienda/lib/talles";
 import { aplicarFieldErrors, mensajeDeError } from "@/lib/api/errors";
 import { nuevoProductoSchema, type NuevoProductoFormValues } from "@/lib/validators/tienda";
 import { cn } from "@/lib/utils";
-
-const TALLES_SUGERIDOS = ["S", "M", "L", "XL", "XXL"];
 
 /**
  * Alta de un producto. Primero los datos y el stock inicial; las fotos se
@@ -32,6 +32,7 @@ export function FormularioNuevoProducto() {
     register,
     handleSubmit,
     control,
+    getValues,
     setValue,
     setError,
     formState: { errors, isSubmitting },
@@ -50,8 +51,9 @@ export function FormularioNuevoProducto() {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: "talles" });
+  const { fields, append, remove, replace } = useFieldArray({ control, name: "talles" });
   const conTalles = useWatch({ control, name: "conTalles" });
+  const talles = useWatch({ control, name: "talles" });
 
   const onSubmit: SubmitHandler<NuevoProductoFormValues> = async (valores) => {
     try {
@@ -195,20 +197,28 @@ export function FormularioNuevoProducto() {
               ))}
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              Camisetas e indumentaria llevan talles; vasos, mates y accesorios, no. No se puede
-              cambiar después.
+              Camisetas e indumentaria llevan talles; vasos, mates y accesorios, no. Si después
+              hace falta, se le agregan desde la ficha del producto.
             </p>
           </fieldset>
 
           {conTalles ? (
-            <div>
+            <div className="grid gap-4">
+              <SelectorTipoTalle
+                talles={talles.map((fila) => fila.talle)}
+                onElegir={(tipo) =>
+                  replace(aplicarTipoTalle(getValues("talles"), tipo, (talle) => ({ talle, stock: 0 })))
+                }
+              />
+              <div>
               <p className="text-sm font-medium">Talles y stock inicial</p>
               <ul className="mt-2 space-y-2">
                 {fields.map((fila, indice) => (
                   <li key={fila.id} className="flex items-start gap-2">
-                    <div className="w-24">
+                    <div className="w-28">
                       <Input
                         aria-label={`Talle ${indice + 1}`}
+                        maxLength={20}
                         className="h-10 uppercase"
                         aria-invalid={Boolean(errors.talles?.[indice]?.talle)}
                         {...register(`talles.${indice}.talle`)}
@@ -259,6 +269,7 @@ export function FormularioNuevoProducto() {
                 <Plus aria-hidden />
                 Agregar talle
               </Button>
+              </div>
             </div>
           ) : (
             <Campo id={`${id}-stock`} etiqueta="Stock inicial" error={errors.stockUnico?.message}>

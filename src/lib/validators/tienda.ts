@@ -15,6 +15,23 @@ const stock = z
   .int("El stock va sin decimales")
   .min(0, "El stock no puede ser negativo");
 
+/** "  xl " → "XL": igual que la API, así "m" y "M" son el mismo talle. */
+const nombreTalle = z
+  .string()
+  .trim()
+  .max(20, "Muy largo")
+  .transform((talle) => talle.replace(/\s+/g, " ").toUpperCase());
+
+function marcarTallesRepetidos(filas: { talle: string }[], ctx: z.RefinementCtx, campo: string) {
+  const vistos = new Set<string>();
+  filas.forEach((fila, indice) => {
+    if (vistos.has(fila.talle)) {
+      ctx.addIssue({ code: "custom", path: [campo, indice, "talle"], message: "Repetido" });
+    }
+    vistos.add(fila.talle);
+  });
+}
+
 export const datosProductoSchema = z.object({
   nombre: z.string().trim().min(2, "Ingresá el nombre").max(120, "El nombre es muy largo"),
   categoriaId: z.string().min(1, "Elegí la categoría"),
@@ -31,7 +48,7 @@ export const nuevoProductoSchema = datosProductoSchema
     conTalles: z.boolean(),
     talles: z.array(
       z.object({
-        talle: z.string().trim().min(1, "Ingresá el talle").max(10, "Muy largo").toUpperCase(),
+        talle: nombreTalle.refine(Boolean, "Ingresá el talle"),
         stock,
       }),
     ),
@@ -45,30 +62,43 @@ export const nuevoProductoSchema = datosProductoSchema
       return;
     }
 
-    // "m" y "M" son el mismo talle: la API los rechaza repetidos.
-    const vistos = new Set<string>();
-    valores.talles.forEach((fila, indice) => {
-      const clave = fila.talle.trim().toUpperCase();
-      if (vistos.has(clave)) {
-        ctx.addIssue({ code: "custom", path: ["talles", indice, "talle"], message: "Repetido" });
-      }
-      vistos.add(clave);
-    });
+    marcarTallesRepetidos(valores.talles, ctx, "talles");
   });
 
 export type NuevoProductoFormValues = z.infer<typeof nuevoProductoSchema>;
 
-export const movimientoStockSchema = z.object({
-  tipo: z.enum(["ENTRA", "SALE"]),
-  cantidad: z
-    .number({ invalid_type_error: "Ingresá la cantidad" })
-    .int("Va sin decimales")
-    .positive("Tiene que ser mayor a cero"),
-  motivo: z.enum(["INGRESO", "AJUSTE"]),
-  observaciones: z.string().trim().max(300, "Es muy largo"),
-});
+/** Edición de los talles de un producto. Sin talles hay una sola fila, sin nombre. */
+export const tallesStockSchema = z
+  .object({
+    conTalles: z.boolean(),
+    filas: z.array(
+      z.object({
+        varianteId: z.string().optional(),
+        talle: nombreTalle,
+        stock,
+        activa: z.boolean(),
+      }),
+    ),
+    motivo: z.enum(["INGRESO", "AJUSTE"]),
+    observaciones: z.string().trim().max(300, "Es muy largo"),
+  })
+  .superRefine((valores, ctx) => {
+    if (!valores.conTalles) return;
 
-export type MovimientoStockFormValues = z.infer<typeof movimientoStockSchema>;
+    if (valores.filas.length === 0) {
+      ctx.addIssue({ code: "custom", path: ["filas"], message: "Dejá al menos un talle" });
+      return;
+    }
+
+    valores.filas.forEach((fila, indice) => {
+      if (!fila.talle) {
+        ctx.addIssue({ code: "custom", path: ["filas", indice, "talle"], message: "Ingresá el talle" });
+      }
+    });
+    marcarTallesRepetidos(valores.filas, ctx, "filas");
+  });
+
+export type TallesStockFormValues = z.infer<typeof tallesStockSchema>;
 
 export const configuracionTiendaSchema = z.object({
   retiroLugar: z.string().trim().max(120, "Es muy largo"),

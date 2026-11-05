@@ -1,184 +1,58 @@
 "use client";
 
-import { useId, useState } from "react";
-import { useForm, useWatch, type SubmitHandler } from "react-hook-form";
+import { useEffect, useId, useState } from "react";
+import { useFieldArray, useForm, useWatch, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowDownUp, LoaderCircle, Plus } from "lucide-react";
+import { Eye, EyeOff, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Campo, CLASES_SELECT } from "@/features/tienda/components/panel/campo";
+import { SelectorTipoTalle } from "@/features/tienda/components/panel/selector-tipo-talle";
 import {
   useActualizarVariante,
   useAgregarTalle,
+  useEliminarTalle,
   useMoverStock,
 } from "@/features/tienda/hooks/use-tienda-admin";
-import { aplicarFieldErrors, mensajeDeError } from "@/lib/api/errors";
+import { aplicarTipoTalle } from "@/features/tienda/lib/talles";
+import { mensajeDeError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
-import { movimientoStockSchema, type MovimientoStockFormValues } from "@/lib/validators/tienda";
-import type { Disponibilidad, ProductoAdmin, VarianteAdmin } from "@/types/tienda";
+import { tallesStockSchema, type TallesStockFormValues } from "@/lib/validators/tienda";
+import type { ProductoAdmin } from "@/types/tienda";
 
-const ETIQUETA_DISPONIBILIDAD: Record<Disponibilidad, { texto: string; clase: string }> = {
-  DISPONIBLE: { texto: "Disponible", clase: "text-emerald-700" },
-  ULTIMAS_UNIDADES: { texto: "Últimas unidades", clase: "text-amber-700" },
-  SIN_STOCK: { texto: "Sin stock", clase: "text-destructive" },
-};
-
-/**
- * Movimiento de stock: entra mercadería o se corrige un error. Se carga la
- * cantidad en positivo y se elige si entra o sale: es más claro que pedir un
- * número negativo.
- */
-function MoverStockDialog({
-  variante,
-  onClose,
-}: {
-  variante: VarianteAdmin | null;
-  onClose: () => void;
-}) {
-  const id = useId();
-  const { mutateAsync: mover } = useMoverStock();
-
-  const {
-    register,
-    handleSubmit,
-    control,
-    setError,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<MovimientoStockFormValues>({
-    resolver: zodResolver(movimientoStockSchema),
-    defaultValues: { tipo: "ENTRA", cantidad: Number.NaN, motivo: "INGRESO", observaciones: "" },
-  });
-
-  const tipo = useWatch({ control, name: "tipo" });
-  const cantidad = useWatch({ control, name: "cantidad" });
-  const resultado =
-    variante && Number.isFinite(cantidad)
-      ? variante.stock + (tipo === "ENTRA" ? cantidad : -cantidad)
-      : null;
-
-  function cerrar() {
-    reset();
-    onClose();
-  }
-
-  const onSubmit: SubmitHandler<MovimientoStockFormValues> = async (valores) => {
-    if (!variante) return;
-    try {
-      await mover({
-        varianteId: variante.id,
-        cantidad: valores.tipo === "ENTRA" ? valores.cantidad : -valores.cantidad,
-        motivo: valores.motivo,
-        observaciones: valores.observaciones || undefined,
-      });
-      toast.success("Stock actualizado");
-      cerrar();
-    } catch (error) {
-      if (!aplicarFieldErrors(error, setError, ["cantidad", "motivo", "observaciones"])) {
-        toast.error("No pudimos cambiar el stock", { description: mensajeDeError(error) });
-      }
-    }
+function valoresDe(producto: ProductoAdmin): TallesStockFormValues {
+  return {
+    conTalles: producto.tieneTalles,
+    filas: producto.variantes.map((variante) => ({
+      varianteId: variante.id,
+      talle: variante.talle ?? "",
+      stock: variante.stock,
+      activa: variante.activa,
+    })),
+    motivo: "INGRESO",
+    observaciones: "",
   };
-
-  return (
-    <Dialog open={Boolean(variante)} onOpenChange={(abierto) => !abierto && cerrar()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-heading">
-            Cambiar stock{variante?.talle && ` · talle ${variante.talle}`}
-          </DialogTitle>
-          <DialogDescription>Hoy hay {variante?.stock ?? 0}. El cambio queda en el historial.</DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Campo id={`${id}-tipo`} etiqueta="Movimiento">
-              <select id={`${id}-tipo`} className={CLASES_SELECT} {...register("tipo")}>
-                <option value="ENTRA">Entra</option>
-                <option value="SALE">Sale</option>
-              </select>
-            </Campo>
-            <Campo id={`${id}-cantidad`} etiqueta="Cantidad" error={errors.cantidad?.message}>
-              <Input
-                id={`${id}-cantidad`}
-                type="number"
-                min={1}
-                inputMode="numeric"
-                autoFocus
-                className="h-10"
-                aria-invalid={Boolean(errors.cantidad)}
-                {...register("cantidad", { valueAsNumber: true })}
-              />
-            </Campo>
-          </div>
-
-          <Campo id={`${id}-motivo`} etiqueta="Motivo">
-            <select id={`${id}-motivo`} className={CLASES_SELECT} {...register("motivo")}>
-              <option value="INGRESO">Ingreso de mercadería</option>
-              <option value="AJUSTE">Ajuste o corrección</option>
-            </select>
-          </Campo>
-
-          <Campo
-            id={`${id}-obs`}
-            etiqueta="Observaciones"
-            ayuda="Opcional. Por ejemplo: «Llegó la segunda tanda» o «Se contó de nuevo»."
-            error={errors.observaciones?.message}
-          >
-            <Input id={`${id}-obs`} className="h-10" {...register("observaciones")} />
-          </Campo>
-
-          {resultado !== null && (
-            <p className={cn("text-sm", resultado < 0 ? "text-destructive" : "text-muted-foreground")}>
-              {resultado < 0
-                ? `No alcanza: hay ${variante?.stock ?? 0}.`
-                : `Queda en ${resultado}.`}
-            </p>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={cerrar} disabled={isSubmitting}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isSubmitting || (resultado !== null && resultado < 0)}>
-              {isSubmitting && <LoaderCircle className="animate-spin" aria-hidden />}
-              Guardar
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
-function AgregarTalle({ productoId }: { productoId: string }) {
+/** Un producto sin talles se convierte al cargarle el primero. */
+function AgregarPrimerTalle({ productoId }: { productoId: string }) {
   const [talle, setTalle] = useState("");
-  const [stock, setStock] = useState("0");
   const [error, setError] = useState<string | null>(null);
   const { mutateAsync: agregar, isPending } = useAgregarTalle();
 
   async function alAgregar(evento: React.FormEvent) {
     evento.preventDefault();
-    const limpio = talle.trim().toUpperCase();
+    const limpio = talle.trim().replace(/\s+/g, " ").toUpperCase();
     if (!limpio) {
       setError("Ingresá el talle");
       return;
     }
     try {
-      await agregar({ productoId, talle: limpio, stock: Number(stock) || 0 });
+      await agregar({ productoId, talle: limpio });
       toast.success(`Talle ${limpio} agregado`);
       setTalle("");
-      setStock("0");
       setError(null);
     } catch (problema) {
       setError(mensajeDeError(problema));
@@ -186,24 +60,17 @@ function AgregarTalle({ productoId }: { productoId: string }) {
   }
 
   return (
-    <form onSubmit={(evento) => void alAgregar(evento)} className="mt-4 border-t pt-4">
-      <p className="text-sm font-medium">Agregar un talle</p>
+    <form onSubmit={(evento) => void alAgregar(evento)} className="border-t pt-4">
+      <p className="text-sm font-medium">Pasar a talles</p>
+      <p className="text-xs text-muted-foreground">El stock actual queda en el primer talle que cargues.</p>
       <div className="mt-2 flex flex-wrap items-start gap-2">
         <Input
-          aria-label="Talle nuevo"
+          aria-label="Primer talle"
           placeholder="Talle"
+          maxLength={20}
           value={talle}
           onChange={(evento) => setTalle(evento.target.value)}
-          className="h-9 w-24 uppercase"
-        />
-        <Input
-          aria-label="Stock inicial del talle nuevo"
-          type="number"
-          min={0}
-          inputMode="numeric"
-          value={stock}
-          onChange={(evento) => setStock(evento.target.value)}
-          className="h-9 w-24"
+          className="h-9 w-28 uppercase"
         />
         <Button type="submit" variant="outline" size="lg" disabled={isPending}>
           {isPending ? <LoaderCircle className="animate-spin" aria-hidden /> : <Plus aria-hidden />}
@@ -219,65 +86,282 @@ function AgregarTalle({ productoId }: { productoId: string }) {
   );
 }
 
+/**
+ * Talles y stock de un producto, con las mismas filas que el alta. Se carga el
+ * stock que tiene que quedar y al guardar se manda la diferencia: la API la
+ * suma, así no pisa una venta que entre mientras se edita, y queda en el
+ * historial.
+ */
 export function TallesYStock({ producto }: { producto: ProductoAdmin }) {
-  const [aMover, setAMover] = useState<VarianteAdmin | null>(null);
-  const { mutateAsync: actualizarVariante, isPending } = useActualizarVariante();
+  const id = useId();
+  const { mutateAsync: actualizarVariante } = useActualizarVariante();
+  const { mutateAsync: agregarTalle } = useAgregarTalle();
+  const { mutateAsync: eliminarTalle } = useEliminarTalle();
+  const { mutateAsync: moverStock } = useMoverStock();
 
-  async function cambiarActiva(variante: VarianteAdmin) {
-    try {
-      await actualizarVariante({ id: variante.id, activa: !variante.activa });
-      toast.success(variante.activa ? `Talle ${variante.talle} desactivado` : `Talle ${variante.talle} activado`);
-    } catch (error) {
-      toast.error("No pudimos cambiar el talle", { description: mensajeDeError(error) });
+  const {
+    register,
+    handleSubmit,
+    control,
+    getValues,
+    setValue,
+    reset,
+    formState: { errors, isDirty, isSubmitting, defaultValues },
+  } = useForm<TallesStockFormValues>({
+    resolver: zodResolver(tallesStockSchema),
+    defaultValues: valoresDe(producto),
+  });
+
+  const { fields, append, remove, replace } = useFieldArray({ control, name: "filas", keyName: "clave" });
+  const filas = useWatch({ control, name: "filas" });
+
+  // Sin cambios a medio cargar, muestra lo último que hay (una venta, por ejemplo).
+  useEffect(() => {
+    if (!isDirty) reset(valoresDe(producto));
+  }, [producto, isDirty, reset]);
+
+  const base = defaultValues?.filas ?? [];
+  const anteriorDe = (varianteId?: string) => base.find((fila) => fila?.varianteId === varianteId);
+
+  const diferencia = (fila: { varianteId?: string; stock: number }) => {
+    const anterior = fila.varianteId ? anteriorDe(fila.varianteId) : undefined;
+    if (anterior?.stock === undefined || !Number.isFinite(fila.stock)) return 0;
+    return fila.stock - anterior.stock;
+  };
+
+  const diferencias = filas.map(diferencia);
+  const quitados = base.filter(
+    (anterior) => !filas.some((fila) => fila.varianteId === anterior?.varianteId),
+  );
+
+  const onSubmit: SubmitHandler<TallesStockFormValues> = async (valores) => {
+    const cambios: (() => Promise<ProductoAdmin>)[] = [];
+    const nuevos: (() => Promise<ProductoAdmin>)[] = [];
+
+    for (const fila of valores.filas) {
+      const { varianteId } = fila;
+      if (!varianteId) {
+        nuevos.push(() => agregarTalle({ productoId: producto.id, talle: fila.talle, stock: fila.stock }));
+        continue;
+      }
+
+      const anterior = anteriorDe(varianteId);
+      if (valores.conTalles && fila.talle !== anterior?.talle) {
+        cambios.push(() => actualizarVariante({ id: varianteId, talle: fila.talle }));
+      }
+      if (fila.activa !== anterior?.activa) {
+        cambios.push(() => actualizarVariante({ id: varianteId, activa: fila.activa }));
+      }
+      const cantidad = diferencia(fila);
+      if (cantidad !== 0) {
+        cambios.push(() =>
+          moverStock({
+            varianteId,
+            cantidad,
+            // Si baja no entró mercadería: solo puede ser una corrección.
+            motivo: cantidad > 0 ? valores.motivo : "AJUSTE",
+            observaciones: valores.observaciones || undefined,
+          }),
+        );
+      }
     }
-  }
+
+    // Lo que se quita va último: un producto no puede quedarse sin talles en el medio.
+    const eliminados = quitados.flatMap((fila) => {
+      const varianteId = fila?.varianteId;
+      return varianteId ? [() => eliminarTalle(varianteId)] : [];
+    });
+
+    let ultimo: ProductoAdmin | null = null;
+    try {
+      for (const paso of [...cambios, ...nuevos, ...eliminados]) ultimo = await paso();
+    } catch (error) {
+      toast.error(ultimo ? "Se guardó solo una parte de los cambios" : "No pudimos guardar los cambios", {
+        description: mensajeDeError(error),
+      });
+      if (ultimo) reset(valoresDe(ultimo));
+      return;
+    }
+
+    toast.success("Talles y stock actualizados");
+    reset(valoresDe(ultimo ?? producto));
+  };
+
+  const hayIngreso = diferencias.some((cantidad) => cantidad > 0);
+  const hayCambioDeStock = diferencias.some((cantidad) => cantidad !== 0);
+  const total = filas.reduce((suma, fila) => suma + (Number.isFinite(fila.stock) ? fila.stock : 0), 0);
+  const errorFilas = errors.filas?.root?.message ?? errors.filas?.message;
 
   return (
-    <div>
-      <ul className="divide-y rounded-xl border">
-        {producto.variantes.map((variante) => {
-          const disponibilidad = ETIQUETA_DISPONIBILIDAD[variante.disponibilidad];
-          return (
-            <li
-              key={variante.id}
-              className={cn("flex flex-wrap items-center gap-3 px-4 py-3", !variante.activa && "bg-muted/50")}
+    <div className="grid gap-4">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid gap-4">
+        {producto.tieneTalles && (
+          <SelectorTipoTalle
+            talles={filas.map((fila) => fila.talle)}
+            onElegir={(tipo) =>
+              replace(
+                aplicarTipoTalle(getValues("filas"), tipo, (talle) => ({ talle, stock: 0, activa: true })),
+              )
+            }
+          />
+        )}
+
+        <div>
+          {producto.tieneTalles && (
+            <div className="mb-1 flex gap-2 text-xs font-medium text-muted-foreground">
+              <span className="w-28">Talle</span>
+              <span className="w-24">Stock</span>
+            </div>
+          )}
+          <ul className="space-y-2">
+            {fields.map((campo, indice) => {
+              const fila = filas[indice];
+              const cantidad = diferencias[indice] ?? 0;
+              const activa = fila?.activa ?? true;
+              return (
+                <li key={campo.clave} className="flex flex-wrap items-start gap-2">
+                  {producto.tieneTalles && (
+                    <div className="w-28">
+                      <Input
+                        aria-label={`Talle ${indice + 1}`}
+                        maxLength={20}
+                        className={cn("h-10 uppercase", !activa && "opacity-60")}
+                        aria-invalid={Boolean(errors.filas?.[indice]?.talle)}
+                        {...register(`filas.${indice}.talle`)}
+                      />
+                      {errors.filas?.[indice]?.talle && (
+                        <p className="mt-1 text-xs text-destructive">{errors.filas[indice].talle.message}</p>
+                      )}
+                    </div>
+                  )}
+                  <div className="w-24">
+                    <Input
+                      aria-label={producto.tieneTalles ? `Stock del talle ${indice + 1}` : "Stock"}
+                      type="number"
+                      min={0}
+                      inputMode="numeric"
+                      className={cn("h-10", !activa && "opacity-60")}
+                      aria-invalid={Boolean(errors.filas?.[indice]?.stock)}
+                      {...register(`filas.${indice}.stock`, { valueAsNumber: true })}
+                    />
+                    {errors.filas?.[indice]?.stock && (
+                      <p className="mt-1 text-xs text-destructive">{errors.filas[indice].stock.message}</p>
+                    )}
+                  </div>
+                  {producto.tieneTalles && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="mt-1"
+                        title={activa ? "Dejar de ofrecer este talle" : "Volver a ofrecer este talle"}
+                        aria-label={`${activa ? "Ocultar" : "Mostrar"} el talle ${fila?.talle ?? indice + 1}`}
+                        aria-pressed={!activa}
+                        onClick={() => setValue(`filas.${indice}.activa`, !activa, { shouldDirty: true })}
+                      >
+                        {activa ? <Eye aria-hidden /> : <EyeOff aria-hidden />}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="mt-1"
+                        aria-label={`Quitar el talle ${fila?.talle ?? indice + 1}`}
+                        onClick={() => remove(indice)}
+                      >
+                        <Trash2 aria-hidden />
+                      </Button>
+                    </>
+                  )}
+                  <span className="mt-3 text-xs">
+                    {cantidad !== 0 && (
+                      <span
+                        className={cn(
+                          "font-medium tabular-nums",
+                          cantidad > 0 ? "text-emerald-700" : "text-destructive",
+                        )}
+                      >
+                        {cantidad > 0 ? `+${cantidad}` : `−${-cantidad}`}
+                      </span>
+                    )}
+                    {!activa && <span className="ml-1 text-muted-foreground">Oculto: no se ofrece</span>}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+
+          {errorFilas && (
+            <p role="alert" className="mt-2 text-sm text-destructive">
+              {errorFilas}
+            </p>
+          )}
+
+          {producto.tieneTalles && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => append({ talle: "", stock: 0, activa: true })}
             >
-              {producto.tieneTalles && (
-                <span className="w-12 font-heading text-lg font-bold">{variante.talle}</span>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="font-medium tabular-nums">{variante.stock} en stock</p>
-                <p className={cn("text-xs", variante.activa ? disponibilidad.clase : "text-muted-foreground")}>
-                  {variante.activa ? disponibilidad.texto : "Desactivado: no se ofrece"}
-                </p>
-              </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => setAMover(variante)}>
-                <ArrowDownUp aria-hidden />
-                Cambiar stock
-              </Button>
-              {producto.tieneTalles && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={isPending}
-                  onClick={() => void cambiarActiva(variante)}
-                >
-                  {variante.activa ? "Desactivar" : "Activar"}
-                </Button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+              <Plus aria-hidden />
+              Agregar talle
+            </Button>
+          )}
 
-      <p className="mt-2 text-sm text-muted-foreground">
-        Total: <span className="font-medium text-foreground tabular-nums">{producto.stockTotal}</span>
-      </p>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Total: <span className="font-medium text-foreground tabular-nums">{total}</span>
+          </p>
+        </div>
 
-      {producto.tieneTalles && <AgregarTalle productoId={producto.id} />}
+        {quitados.length > 0 && (
+          <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-950">
+            Al guardar se quita{quitados.length > 1 ? "n" : ""}:{" "}
+            {quitados.map((fila) => `${fila?.talle} (${fila?.stock ?? 0} en stock)`).join(", ")}. Si ya tuvo
+            ventas, queda oculto y vuelve al cargar de nuevo ese talle.
+          </p>
+        )}
 
-      <MoverStockDialog variante={aMover} onClose={() => setAMover(null)} />
+        {hayCambioDeStock && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {hayIngreso && (
+              <Campo id={`${id}-motivo`} etiqueta="Motivo de lo que entra">
+                <select id={`${id}-motivo`} className={CLASES_SELECT} {...register("motivo")}>
+                  <option value="INGRESO">Ingreso de mercadería</option>
+                  <option value="AJUSTE">Ajuste o corrección</option>
+                </select>
+              </Campo>
+            )}
+            <Campo
+              id={`${id}-obs`}
+              etiqueta="Observaciones"
+              ayuda="Opcional. Queda en el historial."
+              error={errors.observaciones?.message}
+            >
+              <Input id={`${id}-obs`} className="h-10" {...register("observaciones")} />
+            </Campo>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!isDirty || isSubmitting}
+            onClick={() => reset(valoresDe(producto))}
+          >
+            Descartar
+          </Button>
+          <Button type="submit" disabled={!isDirty || isSubmitting}>
+            {isSubmitting && <LoaderCircle className="animate-spin" aria-hidden />}
+            Guardar talles y stock
+          </Button>
+        </div>
+      </form>
+
+      {!producto.tieneTalles && <AgregarPrimerTalle productoId={producto.id} />}
     </div>
   );
 }

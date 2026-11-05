@@ -19,15 +19,16 @@ import {
   TarjetaProducto,
   TarjetaProductoCargando,
 } from "@/features/tienda/components/tarjeta-producto";
-import { useCategoriasTienda, useProductosTienda } from "@/features/tienda/hooks/use-tienda";
+import {
+  useCategoriasTienda,
+  useProductosTienda,
+  useTallesTienda,
+} from "@/features/tienda/hooks/use-tienda";
 import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
 import { ORDENES_CATALOGO, type OrdenCatalogo } from "@/types/tienda";
 
 const POR_PAGINA = 24;
-
-/** Los talles de indumentaria más comunes; la API filtra los que tienen stock. */
-const TALLES = ["XS", "S", "M", "L", "XL", "XXL"];
 
 const RANGOS = [
   { valor: "hasta-20", etiqueta: "Hasta $ 20.000", precioMax: 20000 },
@@ -84,6 +85,7 @@ export function Catalogo() {
   const pagina = Math.max(1, Number(params.get("pagina")) || 1);
 
   const { data: categorias = [] } = useCategoriasTienda();
+  const { data: talles = [] } = useTallesTienda();
   const { data, isPending, isError, error, refetch, isPlaceholderData } = useProductosTienda({
     page: pagina,
     pageSize: POR_PAGINA,
@@ -109,6 +111,8 @@ export function Catalogo() {
     router.replace("/tienda/productos", { scroll: false });
   }
 
+  // El elegido sigue a la vista aunque se agote, para poder sacarlo.
+  const tallesDelFiltro = talle && !talles.includes(talle) ? [talle, ...talles] : talles;
   const cantidadFiltros = [categoria, talle, rango].filter(Boolean).length;
   const hayFiltros = cantidadFiltros > 0 || Boolean(buscar);
   const titulo = categoria
@@ -134,19 +138,21 @@ export function Catalogo() {
         </div>
       </fieldset>
 
-      <fieldset>
-        <legend className="text-sm font-semibold">Talle</legend>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Muestra lo que tiene ese talle disponible.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {TALLES.map((item) => (
-            <Chip key={item} activo={talle === item} onClick={() => cambiar("talle", item)}>
-              {item}
-            </Chip>
-          ))}
-        </div>
-      </fieldset>
+      {tallesDelFiltro.length > 0 && (
+        <fieldset>
+          <legend className="text-sm font-semibold">Talle</legend>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Muestra lo que tiene ese talle disponible.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {tallesDelFiltro.map((item) => (
+              <Chip key={item} activo={talle === item} onClick={() => cambiar("talle", item)}>
+                {item}
+              </Chip>
+            ))}
+          </div>
+        </fieldset>
+      )}
 
       <fieldset>
         <legend className="text-sm font-semibold">Precio</legend>
