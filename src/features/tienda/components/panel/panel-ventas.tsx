@@ -13,7 +13,7 @@ import {
   useProductosAdmin,
   useVentasTienda,
 } from "@/features/tienda/hooks/use-tienda-admin";
-import { planillaVentas } from "@/features/tienda/lib/planilla-ventas";
+import { nombreMedio, planillaVentas } from "@/features/tienda/lib/planilla-ventas";
 import { formatearMes, formatearMonto } from "@/lib/formato";
 import {
   ESTADOS_PEDIDO,
@@ -81,12 +81,12 @@ function detalleStockBajo(producto: ProductoAdmin) {
     .join(" · ");
 }
 
-function StockBajo() {
+function StockBajo({ className }: { className?: string }) {
   const { data } = useProductosAdmin({ page: 1, pageSize: 5, activo: true, stockBajo: true });
   const productos = data?.data ?? [];
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <CardTitle className="font-heading text-base">Stock bajo</CardTitle>
       </CardHeader>
@@ -159,7 +159,7 @@ export function PanelVentas() {
 }
 
 function Contenido({ datos }: { datos: VentasTienda }) {
-  const { ventasPorMes, porCategoria, masVendidos, pendientes } = datos;
+  const { ventasPorMes, porCategoria, masVendidos, porMedio, pendientes } = datos;
   const delMes = ventasPorMes.at(-1);
   const mesAnterior = ventasPorMes.at(-2);
   const total = ventasPorMes.reduce((suma, mes) => suma + mes.total, 0);
@@ -239,8 +239,26 @@ function Contenido({ datos }: { datos: VentasTienda }) {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-heading text-base">Por medio de pago · últimos 6 meses</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BarrasDesglose
+              datos={porMedio.map((fila) => ({
+                clave: fila.medio ?? "sin-dato",
+                nombre: nombreMedio(fila.medio),
+                total: fila.total,
+                cantidad: fila.cantidad,
+              }))}
+              mensajeVacio="Todavía no hay ventas."
+              unidad={["pedido", "pedidos"]}
+            />
+          </CardContent>
+        </Card>
+
         <PedidosPorEstado />
-        <StockBajo />
+        <StockBajo className="lg:col-span-2" />
       </div>
     </>
   );

@@ -3,6 +3,7 @@ import type { PaginatedResponse } from "@/types/api";
 import type { TipoSocio } from "@/types/socio";
 import type {
   ActualizarProductoInput,
+  CambioEstadoPedido,
   CategoriaTienda,
   ConfiguracionTienda,
   CrearProductoInput,
@@ -157,10 +158,9 @@ export async function listarPedidosAdmin(
   return data;
 }
 
-/** Cancelar lleva `motivo`: lo ve el comprador. */
 export async function cambiarEstadoPedido(
   codigo: string,
-  input: { estado: EstadoPedido; motivo?: string },
+  input: CambioEstadoPedido,
 ): Promise<PedidoAdmin> {
   const { data } = await api.post<PedidoAdmin>(`${BASE}/pedidos/${codigo}/estado`, input);
   return data;

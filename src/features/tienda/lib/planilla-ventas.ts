@@ -1,4 +1,8 @@
+import { ETIQUETAS_MEDIO_PAGO, type MedioPago } from "@/types/pago";
 import type { VentasTienda } from "@/types/tienda";
+
+/** Lo cobrado antes de que se guardara el medio queda sin dato. */
+export const nombreMedio = (medio: MedioPago | null) => (medio ? ETIQUETAS_MEDIO_PAGO[medio] : "Sin dato");
 
 /**
  * Planilla del dashboard: un CSV que Excel abre directo. Va con BOM para las
@@ -9,7 +13,7 @@ function celda(valor: string | number): string {
   return /[;"\n]/.test(texto) ? `"${texto.replaceAll('"', '""')}"` : texto;
 }
 
-export function planillaVentas({ ventasPorMes, porCategoria, masVendidos }: VentasTienda): Blob {
+export function planillaVentas({ ventasPorMes, porCategoria, masVendidos, porMedio }: VentasTienda): Blob {
   const filas: (string | number)[][] = [
     ["Ventas por mes"],
     ["Mes", "Pedidos", "Total"],
@@ -22,6 +26,10 @@ export function planillaVentas({ ventasPorMes, porCategoria, masVendidos }: Vent
     ["Los más vendidos (últimos 6 meses)"],
     ["Producto", "Unidades", "Total"],
     ...masVendidos.map((producto) => [producto.productoNombre, producto.unidades, producto.total]),
+    [],
+    ["Por medio de pago (últimos 6 meses)"],
+    ["Medio", "Pedidos", "Total"],
+    ...porMedio.map((fila) => [nombreMedio(fila.medio), fila.cantidad, fila.total]),
   ];
 
   const csv = filas.map((fila) => fila.map(celda).join(";")).join("\r\n");

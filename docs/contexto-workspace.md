@@ -760,7 +760,7 @@ retirar) → `RETIRADO`, y `CANCELADO`.
 |---|---|---|---|
 | GET | `/tienda/admin/pedidos` | `ADMIN` y `TIENDA` | Paginado, los más nuevos primero. Filtros: `estado`, `buscar` (código, nombre, apellido o DNI del comprador). Suma `contadores`: cuántos hay por estado con la misma búsqueda, **sin** aplicar el filtro de `estado`, para las pestañas |
 | GET | `/tienda/admin/pedidos/:codigo` | `ADMIN` y `TIENDA` | Por código (`T-0042`) |
-| POST | `/tienda/admin/pedidos/:codigo/estado` | `ADMIN` y `TIENDA` | `{ estado, motivo? }` → `200` con el `PedidoAdmin` actualizado |
+| POST | `/tienda/admin/pedidos/:codigo/estado` | `ADMIN` y `TIENDA` | `{ estado, motivo?, medioPago? }` → `200` con el `PedidoAdmin` actualizado. Pasar a `PAGADO` exige `medioPago`: `EFECTIVO` o `TRANSFERENCIA`, como en las cuotas. `MERCADO_PAGO` se rechaza (`fieldErrors.medioPago`): lo registra solo el sistema, y los pedidos se van a pagar por ahí cuando esté la pasarela (decisión del cliente, 2026-11-05) |
 
 `PedidoAdmin` es el `Pedido` más lo que hace falta para entregarlo: `comprador.dni`,
 `retiro.retiraOtraPersonaDni`, `esSocio` e `historial[].registradoPor` (nombre de quien
@@ -802,7 +802,7 @@ endpoints:** el seguimiento público sigue sin mostrarlo.
 
 | Método | Ruta | Acceso | Notas |
 |---|---|---|---|
-| GET | `/tienda/admin/ventas` | `ADMIN` y `TIENDA` | `?meses=N` (1 a 24, 6 por defecto, contando el actual) → `{ ventasPorMes, porCategoria, masVendidos, pendientes }` |
+| GET | `/tienda/admin/ventas` | `ADMIN` y `TIENDA` | `?meses=N` (1 a 24, 6 por defecto, contando el actual) → `{ ventasPorMes, porCategoria, porMedio, masVendidos, pendientes }` |
 
 - `ventasPorMes`: `{ mes: 'YYYY-MM', total, cantidad }`, con un elemento por mes, **también los
   que no tuvieron ventas**. `cantidad` son pedidos.
@@ -817,6 +817,8 @@ endpoints:** el seguimiento público sigue sin mostrarlo.
   no hay acumulados guardados.
 - Los importes son lo que se cobró, con el descuento de socio aplicado. Nombres y
   categorías son los de hoy, así un producto renombrado no se parte en dos filas.
+- `porMedio`: `{ medio, total, cantidad }` del período, de mayor a menor. `cantidad` son
+  pedidos, y `medio` es `null` en los cobrados antes de que se guardara.
 - **No toca `pagos`:** la plata de la tienda no se mezcla con la de las cuotas.
 
 ### Disciplinas (implementado)

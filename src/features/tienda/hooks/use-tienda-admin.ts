@@ -30,7 +30,12 @@ import {
   subirImagenes,
 } from "@/features/tienda/api/tienda-admin.api";
 import { TIENDA_QUERY_KEY } from "@/features/tienda/hooks/use-tienda";
-import type { EstadoPedido, FiltrosPedidosAdmin, FiltrosProductosAdmin, ProductoAdmin } from "@/types/tienda";
+import type {
+  CambioEstadoPedido,
+  FiltrosPedidosAdmin,
+  FiltrosProductosAdmin,
+  ProductoAdmin,
+} from "@/types/tienda";
 
 const PANEL_KEY = [...TIENDA_QUERY_KEY, "panel"] as const;
 const PRODUCTOS_KEY = [...PANEL_KEY, "productos"] as const;
@@ -54,7 +59,7 @@ export function usePedidosAdmin(filtros: FiltrosPedidosAdmin) {
 export function useCambiarEstadoPedido() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ codigo, ...input }: { codigo: string; estado: EstadoPedido; motivo?: string }) =>
+    mutationFn: ({ codigo, ...input }: CambioEstadoPedido & { codigo: string }) =>
       cambiarEstadoPedido(codigo, input),
     onSettled: () => queryClient.invalidateQueries({ queryKey: PANEL_KEY }),
   });

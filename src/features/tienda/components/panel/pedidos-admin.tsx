@@ -19,13 +19,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Cargando, ErrorConsulta } from "@/components/shared/estado-consulta";
 import { EtiquetaEstadoPedido } from "@/features/tienda/components/detalle-pedido";
-import { Campo, CLASES_TEXTAREA } from "@/features/tienda/components/panel/campo";
+import { Campo, CLASES_SELECT, CLASES_TEXTAREA } from "@/features/tienda/components/panel/campo";
 import { useCambiarEstadoPedido, usePedidosAdmin } from "@/features/tienda/hooks/use-tienda-admin";
 import { useDebounce } from "@/hooks/use-debounce";
 import { aplicarFieldErrors, mensajeDeError } from "@/lib/api/errors";
 import { formatearMonto } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { cancelarPedidoSchema, type CancelarPedidoFormValues } from "@/lib/validators/tienda";
+import { ETIQUETAS_MEDIO_PAGO, MEDIOS_PAGO_MANUALES, type MedioPagoManual } from "@/types/pago";
 import { ETIQUETAS_ESTADO_PEDIDO, type EstadoPedido, type PedidoAdmin } from "@/types/tienda";
 
 const VISTAS: { estado?: EstadoPedido; etiqueta: string }[] = [
@@ -98,22 +99,34 @@ function PasoDialog({
   abierto: boolean;
   onClose: () => void;
 }) {
+  const id = useId();
   const { mutateAsync: cambiar, isPending } = useCambiarEstadoPedido();
+  const [medioPago, setMedioPago] = useState<MedioPagoManual | "">("");
+  const pideMedio = elegido?.paso.estado === "PAGADO";
+
+  function cerrar() {
+    setMedioPago("");
+    onClose();
+  }
 
   async function confirmar() {
     if (!elegido) return;
     const { pedido, paso } = elegido;
     try {
-      await cambiar({ codigo: pedido.codigo, estado: paso.estado });
+      await cambiar({
+        codigo: pedido.codigo,
+        estado: paso.estado,
+        medioPago: pideMedio && medioPago ? medioPago : undefined,
+      });
       toast.success(`${pedido.codigo}: ${ETIQUETAS_ESTADO_PEDIDO[paso.estado]}`);
     } catch (error) {
       toast.error("No pudimos cambiar el pedido", { description: mensajeDeError(error) });
     }
-    onClose();
+    cerrar();
   }
 
   return (
-    <Dialog open={abierto} onOpenChange={(sigue) => !sigue && onClose()}>
+    <Dialog open={abierto} onOpenChange={(sigue) => !sigue && cerrar()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-heading">
@@ -121,11 +134,32 @@ function PasoDialog({
           </DialogTitle>
           <DialogDescription>{elegido?.paso.aviso(elegido.pedido)}</DialogDescription>
         </DialogHeader>
+        {pideMedio && (
+          <Campo id={`${id}-medio`} etiqueta="Medio de pago">
+            <select
+              id={`${id}-medio`}
+              className={CLASES_SELECT}
+              value={medioPago}
+              onChange={(evento) => setMedioPago(evento.target.value as MedioPagoManual | "")}
+            >
+              <option value="">Elegí uno</option>
+              {MEDIOS_PAGO_MANUALES.map((medio) => (
+                <option key={medio} value={medio}>
+                  {ETIQUETAS_MEDIO_PAGO[medio]}
+                </option>
+              ))}
+            </select>
+          </Campo>
+        )}
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>
+          <Button type="button" variant="ghost" onClick={cerrar} disabled={isPending}>
             Volver
           </Button>
-          <Button type="button" onClick={() => void confirmar()} disabled={isPending}>
+          <Button
+            type="button"
+            onClick={() => void confirmar()}
+            disabled={isPending || (pideMedio && !medioPago)}
+          >
             {isPending && <LoaderCircle className="animate-spin" aria-hidden />}
             Confirmar
           </Button>
@@ -283,8 +317,18 @@ function TarjetaPedido({
         )}
       </ul>
 
-      {(retiro.retiraOtraPersona || pedido.notas || pedido.motivoCancelacion || pedido.venceEn) && (
+      {(retiro.retiraOtraPersona ||
+        pedido.notas ||
+        pedido.motivoCancelacion ||
+        pedido.venceEn ||
+        pedido.medioPago) && (
         <div className="mt-4 space-y-1 border-t pt-4 text-sm text-muted-foreground">
+          {pedido.medioPago && (
+            <p>
+              <span className="font-medium text-foreground">Medio de pago: </span>
+              {ETIQUETAS_MEDIO_PAGO[pedido.medioPago]}
+            </p>
+          )}
           {retiro.retiraOtraPersona && (
             <p>
               Retira <span className="font-medium text-foreground">{retiro.retiraOtraPersona}</span>

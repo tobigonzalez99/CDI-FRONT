@@ -1,5 +1,5 @@
 import type { ISODateString } from "./api";
-import type { IngresosDelMes, TotalPorClave } from "./pago";
+import type { IngresosDelMes, MedioPago, MedioPagoManual, TotalPorClave } from "./pago";
 
 /**
  * Tienda online: catálogo (tarea 1).
@@ -300,8 +300,18 @@ export interface Pedido {
 export interface PedidoAdmin extends Omit<Pedido, "comprador" | "retiro" | "historial"> {
   comprador: Pedido["comprador"] & { dni: string };
   esSocio: boolean;
+  /** Se carga al cobrarlo; `null` hasta entonces. */
+  medioPago: MedioPago | null;
   retiro: Pedido["retiro"] & { retiraOtraPersonaDni: string | null };
   historial: (Pedido["historial"][number] & { registradoPor: string | null })[];
+}
+
+export interface CambioEstadoPedido {
+  estado: EstadoPedido;
+  /** Obligatorio al cancelar: lo ve el comprador. */
+  motivo?: string;
+  /** Obligatorio al pasar a PAGADO. */
+  medioPago?: MedioPagoManual;
 }
 
 export interface FiltrosPedidosAdmin {
@@ -318,6 +328,8 @@ export interface VentasTienda {
   ventasPorMes: IngresosDelMes[];
   porCategoria: TotalPorClave[];
   masVendidos: { productoNombre: string; unidades: number; total: number }[];
+  /** De mayor a menor. `medio` es `null` en lo cobrado antes de guardarlo. */
+  porMedio: { medio: MedioPago | null; total: number; cantidad: number }[];
   pendientes: { porCobrar: number; aPreparar: number; paraRetirar: number };
 }
 
