@@ -627,6 +627,7 @@ arrepentimiento y pasarela vienen después.
 |---|---|---|---|
 | GET | `/tienda/categorias` | **público** | Las activas, en el orden del menú |
 | GET | `/tienda/productos` | **público** | Paginado. Filtros: `categoria` (slug), `talle` (con stock), `precioMin`, `precioMax`, `buscar`, `destacados=true`. `orden`: `relevancia` (por defecto) \| `nuevos` \| `precio-asc` \| `precio-desc`. **Lo agotado va siempre al final** |
+| GET | `/tienda/talles` | **público** | `string[]` para el filtro del catálogo: los talles distintos que hoy se pueden comprar (activos, con stock, de productos y categorías activos). Cada producto usa los suyos (letras, números o a medida). Orden: letras por talle (XS, S, M…), números de menor a mayor y el resto alfabético |
 | GET | `/tienda/productos/:slug` | **público** | Ficha: descripción, fotos y talles en orden. `404` si no existe o está inactivo |
 | GET | `/tienda/configuracion` | **público** | `{ retiroLugar, retiroDireccion, retiroHorarios }`. Vacíos hasta que el club los cargue |
 | GET | `/tienda/mi-descuento` | SOCIO | `{ porcentaje, motivo, categoria }`. `motivo`: `APLICA` \| `CATEGORIA_SIN_DESCUENTO` \| `CUOTA_VENCIDA` \| `SOCIO_DE_BAJA` |
@@ -653,8 +654,9 @@ arrepentimiento y pasarela vienen después.
 | GET | `/tienda/admin/productos/:id` | |
 | POST | `/tienda/admin/productos` | Con `variantes`: con talles, una fila por talle; sin talles, una sola fila sin `talle`. El stock inicial queda en el historial |
 | PATCH | `/tienda/admin/productos/:id` | Datos del producto. No hay baja: `activo: false` lo oculta. **El slug no cambia al renombrar** |
-| POST | `/tienda/admin/productos/:id/talles` | Agrega un talle. Solo a un producto que ya tiene talles |
+| POST | `/tienda/admin/productos/:id/talles` | Agrega un talle. A un producto sin talles **lo convierte**: su stock, historial y ventas pasan a ese primer talle. Si es uno oculto (se eliminó y tenía ventas), vuelve con su stock e historial |
 | PATCH | `/tienda/admin/variantes/:id` | Renombra, reordena o desactiva un talle |
+| DELETE | `/tienda/admin/variantes/:id` | Elimina un talle. Sin ventas se borra con su historial; con ventas queda oculto (`activa: false`). Un producto no puede quedarse sin talles |
 | POST | `/tienda/admin/variantes/:id/stock` | `{ cantidad, motivo: INGRESO \| AJUSTE, observaciones? }`. Se **suma** al stock |
 | GET | `/tienda/admin/productos/:id/movimientos` | Historial de stock, paginado |
 | POST | `/tienda/admin/productos/:id/imagenes` | `multipart`, campo `imagenes`. Se agregan al final |
@@ -680,16 +682,78 @@ tiene usuario (por ejemplo, un socio) responde `409`.
   motivo y quién lo cargó. No se edita ni se borra: un error se corrige con un ajuste
   contrario. Se suma en la base en una sola sentencia, con la condición de no quedar
   negativo, así un ingreso del panel no pisa una venta simultánea.
+- **Los talles son texto libre:** letras, números ("38", "38,5", también como número en
+  JSON) o a medida ("10 AÑOS"). Al agregar o renombrar uno, si el producto tiene todos
+  letras o todos números, `orden` se recalcula solo: cargar el 38 después del 40 lo deja
+  primero. Con talles a medida se respeta el orden en que se cargaron.
 - **Talles en mayúscula y sin repetir** ("m" y "M" son el mismo). Un producto es con
-  talles o sin talles: no se mezclan.
-- **Nada se borra:** categorías, productos y talles se desactivan, porque los pedidos
-  van a apuntar a ellos.
+  talles o sin talles: no se mezclan, pero uno sin talles se puede convertir agregándole
+  el primero (decisión del cliente, 2026-11-05). Al revés no.
+- **Casi nada se borra:** categorías y productos se desactivan, porque los pedidos
+  apuntan a ellos. Un talle sí se puede eliminar: si nunca se vendió desaparece, y si
+  se vendió queda oculto (el cliente todavía no definió qué talles va a haber, 2026-11-05).
 - **Fotos re-codificadas:** jpg, png o webp, hasta 8 MB, al menos 600 px de lado y
   hasta 10 por producto. sharp las abre de verdad (un archivo disfrazado se
   rechaza), las endereza, les borra los metadatos (GPS, cámara) y las guarda en WebP
   con 1600 px como máximo, en `uploads/productos`.
 - **El panel no muestra datos de los socios a un operador.** Los endpoints de socios,
   cuotas y cobros siguen siendo solo del `ADMIN`.
+
+### Tienda online — carrito y pedido (tarea 2, backend implementado)
+
+El carrito vive en el navegador. La API lo **cotiza** y lo **confirma**: precios,
+descuento y stock salen siempre de la base, nunca del carrito.
+
+| Método | Ruta | Acceso | Notas |
+|---|---|---|---|
+| POST | `/tienda/carrito/cotizacion` | **público, sesión opcional** | `{ items: [{ varianteId, cantidad }] }` → `Cotizacion`. No reserva nada. Máx. 60 por minuto y por IP |
+| POST | `/tienda/pedidos` | **público, sesión opcional** | Confirma: `{ items, comprador?, retira?, notas? }` → `201 { pedido, seguimientoToken }`. Máx. 5 por minuto y por IP |
+| POST | `/tienda/pedidos/seguimiento` | **público** | `{ token }` → `Pedido`. `404` si no existe. Máx. 20 por minuto y por IP |
+| GET | `/tienda/mis-pedidos` | SOCIO | Paginado, los más nuevos primero |
+| GET | `/tienda/mis-pedidos/:codigo` | SOCIO | Por código (`T-0042`). Uno ajeno responde `404` |
+
+- **Sesión opcional** (`@SesionOpcional()`): el endpoint es público, pero si llega una
+  sesión válida la usa. Una sesión vencida, inválida o con la contraseña inicial
+  pendiente cuenta como **invitado**, sin `401` ni `403`.
+- **Cotización:** junta renglones repetidos. Hasta 10 unidades de cada producto y 20
+  productos distintos. Una línea con problema se **marca** en vez de fallar:
+  `NO_DISPONIBLE` (no existe, o el talle, el producto o la categoría están inactivos)
+  o `STOCK_INSUFICIENTE`, con `disponibles`. `valida: false` si alguna tiene problema. **El total suma todo lo que tiene precio**, también las líneas sin stock suficiente (así el resumen coincide con los renglones); solo queda afuera lo `NO_DISPONIBLE`.
+  Trae `descuentoSocio` (`{ porcentaje, motivo }`) para un socio con sesión, `null`
+  para un invitado.
+- **Descuento:** el de `/tienda/mi-descuento`, aplicado a cada unidad y redondeado al
+  centavo. Un admin o un operador con sesión compran como cualquiera, sin descuento.
+- **Comprador:** un invitado manda `comprador` (`nombre`, `apellido`, `dni`, `email`,
+  `telefono`); sin él, `fieldErrors.comprador`. **Un socio con sesión compra con los
+  datos de su ficha** y lo que mande se ignora: el pedido queda a su nombre.
+  `retira` (`nombre`, `dni`) solo si retira otra persona.
+- **Confirmar vuelve a cotizar** dentro de la transacción y **descuenta el stock** con
+  la misma suma condicional del panel, que impide la sobreventa: de dos compras
+  simultáneas de la última unidad pasa una. Si algo cambió desde la cotización
+  responde `409 CONFLICT` con `fieldErrors["items.<varianteId>"]` ("Solo quedan 2",
+  "Ya no está a la venta") y **no crea nada**: el front vuelve a cotizar.
+- **Precios congelados:** cada renglón guarda nombre, talle, precio de lista y precio
+  final del momento. Si después cambia el producto, el pedido no cambia.
+- **Código:** `T-0042`, correlativo. Por eso **no alcanza para ver un pedido**: el
+  invitado entra con su token y el socio con su sesión.
+- **Seguimiento:** el token (256 bits) llega en el correo de confirmación y en la
+  respuesta de `POST /tienda/pedidos`, y en la base se guarda solo su SHA-256. El
+  enlace es `TIENDA_URL/pedido?token=<token>`: la página lo lee, lo saca de la barra
+  de direcciones (`history.replaceState`), usa `Referrer-Policy: no-referrer` y lo
+  manda en el cuerpo de `/tienda/pedidos/seguimiento`. **El seguimiento no muestra el
+  DNI.**
+- **Reserva y vencimiento:** el pedido nace `PENDIENTE_PAGO` con el stock reservado
+  hasta `venceEn` (`horasReserva` de la configuración, **48 h por defecto**). Mientras
+  no esté la pasarela (tarea 6) se paga en el club al retirarlo. **Cada minuto** un
+  control cancela los vencidos: el stock vuelve (movimiento `CANCELACION`), queda en
+  el historial y le llega un correo al comprador.
+- **Correos:** "Recibimos tu pedido T-0042" (detalle, total, hasta cuándo se reserva,
+  dónde se retira y el enlace) y "Tu pedido T-0042 se canceló". Si el correo falla, el
+  pedido igual queda hecho.
+
+**Estados** (`EstadoPedido`): `PENDIENTE_PAGO` → `PAGADO` → `PREPARADO` (listo para
+retirar) → `RETIRADO`, y `CANCELADO`. Por ahora solo existen `PENDIENTE_PAGO` y
+`CANCELADO` (vencido); los demás los maneja el panel en la tarea 3.
 
 ### Disciplinas (implementado)
 
@@ -838,6 +902,8 @@ y **sin ficha de socio** (administra el sistema, no paga cuota). Accede a todo:
 crear, editar y dar de baja socios, y configurar tipos de socio.
 Credenciales de desarrollo en `.env` (`SEED_ADMIN_*`): DNI `20000001`, clave `CdiAdmin2026`.
 
+**Administrador de la tienda:** otro usuario, con rol `TIENDA` y sin ficha de socio. Maneja productos, stock y pedidos, y no ve socios ni cuotas. Lo crea la semilla, igual que al admin, y no se toca si el DNI ya existe. Credenciales de desarrollo en `.env` (`SEED_TIENDA_*`): DNI `20000002`, clave `CdiTienda2026`. `demo:reiniciar` lo deja sin cambio de clave obligatorio. Los demás operadores de tienda los crea el admin desde el panel.
+
 **Categorías de socio iniciales:**
 
 | Categoría | Descripción | Cuota |
@@ -876,7 +942,7 @@ los de una base existente, editarlos desde el panel (`PATCH /tipos-socio/:id`).
 - `debitos_automaticos`: débito automático de cada socio (`socio_id`, `estado` = `PENDIENTE` | `ACTIVO` | `PAUSADO` | `CANCELADO`, `plan_id` único, `init_point`, `suscripcion_id` único, `monto`, `cancelado_en`, `motivo_cancelacion`). A lo sumo uno no cancelado por socio.
 - `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, `origen` (`PANEL` | `MERCADO_PAGO`), quién registró (nulo solo en los cobros online), datos de anulación, y la devolución o contracargo detectado en Mercado Pago: `devolucion` = `DEVOLUCION` | `DEVOLUCION_PARCIAL` | `CONTRACARGO`, `monto_devuelto`, `devolucion_en`, `vigencia_revertida` y `devolucion_revisada_en`).
 - `tipos_socio.descuento_tienda` (0–100) y `usuarios.activo` (un usuario inactivo no entra; lo usan los operadores de tienda).
-- Esquema `tienda`: `categorias` (`slug` único, `orden`, `activa`), `productos` (`slug` único, `precio` numeric, `descripcion` Markdown, `destacado`, `activo`), `variantes` (un talle de un producto, `talle` nulo = sin talles, `stock` ≥ 0, `orden`, `activa`), `imagenes` (ruta, orden, ancho y alto), `movimientos_stock` (cantidad, stock resultante, motivo `INGRESO` \| `AJUSTE` \| `VENTA` \| `CANCELACION`, quién) y `configuracion` (una fila: datos de retiro y umbral de últimas unidades).
+- Esquema `tienda`: `categorias` (`slug` único, `orden`, `activa`), `productos` (`slug` único, `precio` numeric, `descripcion` Markdown, `destacado`, `activo`), `variantes` (un talle de un producto, `talle` nulo = sin talles, `stock` ≥ 0, `orden`, `activa`), `imagenes` (ruta, orden, ancho y alto), `movimientos_stock` (cantidad, stock resultante, motivo `INGRESO` \| `AJUSTE` \| `VENTA` \| `CANCELACION`, quién) y `configuracion` (una fila: datos de retiro, umbral de últimas unidades y `horas_reserva`). Pedidos: `pedidos` (`numero` correlativo → código `T-0042`, `estado`, `socio_id` si compró un socio con sesión, datos del comprador y de quien retira, `subtotal`, `descuento_porcentaje`, `descuento_monto`, `total`, `vence_en`, `seguimiento_hash` SHA-256 único, `motivo_cancelacion`), `items_pedido` (nombre, talle y precios congelados al comprar) e `historial_pedidos` (cada estado, cuándo y quién). `movimientos_stock.pedido_id` apunta al pedido de una venta o cancelación.
 - `paginas`: secciones de contenido editable (`slug` único, `titulo`, `resumen`, `contenido` en Markdown, `publicada`).
 - `disciplinas`: actividades del menú (`slug` único, `orden`, `activa`). Lista plana, sin jerarquía.
 - `solicitudes_socio`: postulaciones pendientes (datos del formulario + `foto_path` + `tipo_socio_id` + `estado` = `PENDIENTE_PAGO` | `REQUIERE_REVISION`, `vence_en`, `motivo_revision`). `dni` y `email` únicos. Se borra al darse el alta, al rechazarla o si el pago se rechaza o vence.
