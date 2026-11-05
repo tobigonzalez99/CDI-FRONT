@@ -24,6 +24,7 @@ import {
   moverStock,
   obtenerConfiguracionAdmin,
   obtenerProductoAdmin,
+  obtenerVentas,
   ordenarImagenes,
   resetearPasswordOperador,
   subirImagenes,
@@ -33,6 +34,10 @@ import type { EstadoPedido, FiltrosPedidosAdmin, FiltrosProductosAdmin, Producto
 
 const PANEL_KEY = [...TIENDA_QUERY_KEY, "panel"] as const;
 const PRODUCTOS_KEY = [...PANEL_KEY, "productos"] as const;
+
+export function useVentasTienda() {
+  return useQuery({ queryKey: [...PANEL_KEY, "ventas"], queryFn: obtenerVentas });
+}
 
 export function usePedidosAdmin(filtros: FiltrosPedidosAdmin) {
   return useQuery({

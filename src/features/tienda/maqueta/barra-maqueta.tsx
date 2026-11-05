@@ -4,11 +4,10 @@ import { usePathname } from "next/navigation";
 
 /**
  * Aviso en las pantallas que todavía son maqueta, con datos fijos: el
- * arrepentimiento y, en el panel, las ventas (tarea 4).
+ * arrepentimiento.
  */
 const PANTALLAS_DE_MAQUETA: { coincide: (ruta: string) => boolean; texto: string }[] = [
   { coincide: (ruta) => ruta.startsWith("/tienda/arrepentimiento"), texto: "Formulario de ejemplo: se conecta con los pedidos." },
-  { coincide: (ruta) => ruta === "/tienda/panel", texto: "Ventas de ejemplo: el dashboard se conecta en la tarea 4." },
 ];
 
 export function BarraMaqueta() {

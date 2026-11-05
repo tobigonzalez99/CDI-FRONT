@@ -798,6 +798,27 @@ endpoints:** el seguimiento público sigue sin mostrarlo.
   Estos correos no llevan el enlace de seguimiento: en la base se guarda solo su hash, así
   que no se puede volver a armar.
 
+### Tienda online — dashboard de ventas (tarea 4, backend implementado)
+
+| Método | Ruta | Acceso | Notas |
+|---|---|---|---|
+| GET | `/tienda/admin/ventas` | `ADMIN` y `TIENDA` | `?meses=N` (1 a 24, 6 por defecto, contando el actual) → `{ ventasPorMes, porCategoria, masVendidos, pendientes }` |
+
+- `ventasPorMes`: `{ mes: 'YYYY-MM', total, cantidad }`, con un elemento por mes, **también los
+  que no tuvieron ventas**. `cantidad` son pedidos.
+- `porCategoria`: `{ clave, nombre, total, cantidad }` del período, de mayor a menor.
+  `cantidad` son unidades. `masVendidos`: `{ productoNombre, unidades, total }`, los 5 del período por unidades,
+  agrupados por producto y no por talle.
+- `pendientes`: `{ porCobrar, aPreparar, paraRetirar }`, cuántos pedidos hay hoy en
+  `PENDIENTE_PAGO`, `PAGADO` y `PREPARADO`, sin importar el período.
+- **Qué cuenta como venta:** un pedido cobrado y no cancelado, en el mes en que se cobró
+  (la primera vez que pasó a `PAGADO`, en la hora del club). Uno que se cancela después
+  deja de sumar, también en los meses ya pasados. Se calcula siempre sobre los pedidos:
+  no hay acumulados guardados.
+- Los importes son lo que se cobró, con el descuento de socio aplicado. Nombres y
+  categorías son los de hoy, así un producto renombrado no se parte en dos filas.
+- **No toca `pagos`:** la plata de la tienda no se mezcla con la de las cuotas.
+
 ### Disciplinas (implementado)
 
 Actividades del club. Reemplazan al menú "Fútbol" por **"Disciplinas"**, que despliega

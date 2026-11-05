@@ -15,6 +15,7 @@ import type {
   OperadorTienda,
   PedidoAdmin,
   ProductoAdmin,
+  VentasTienda,
 } from "@/types/tienda";
 
 /**
@@ -162,6 +163,13 @@ export async function cambiarEstadoPedido(
   input: { estado: EstadoPedido; motivo?: string },
 ): Promise<PedidoAdmin> {
   const { data } = await api.post<PedidoAdmin>(`${BASE}/pedidos/${codigo}/estado`, input);
+  return data;
+}
+
+// ------------------------------------------------------------------ Ventas
+
+export async function obtenerVentas(): Promise<VentasTienda> {
+  const { data } = await api.get<VentasTienda>(`${BASE}/ventas`);
   return data;
 }
 

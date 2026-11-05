@@ -11,9 +11,12 @@ import type { TotalPorClave } from "@/types/pago";
 export function BarrasDesglose({
   datos,
   mensajeVacio = "Sin movimientos en este período.",
+  unidad = ["pago", "pagos"],
 }: {
   datos: TotalPorClave[];
   mensajeVacio?: string;
+  /** Qué cuenta `cantidad`, en singular y plural. */
+  unidad?: [string, string];
 }) {
   if (datos.length === 0) {
     return <p className="py-6 text-center text-sm text-muted-foreground">{mensajeVacio}</p>;
@@ -39,11 +42,11 @@ export function BarrasDesglose({
                 className="h-full rounded-full bg-chart-mark"
                 style={{ width: `${Math.max((fila.total / maximo) * 100, 2)}%` }}
                 role="img"
-                aria-label={`${fila.nombre}: ${formatearMonto(fila.total)} en ${fila.cantidad} ${fila.cantidad === 1 ? "pago" : "pagos"}`}
+                aria-label={`${fila.nombre}: ${formatearMonto(fila.total)} en ${fila.cantidad} ${unidad[fila.cantidad === 1 ? 0 : 1]}`}
               />
             </div>
             <span className="w-16 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
-              {fila.cantidad} {fila.cantidad === 1 ? "pago" : "pagos"}
+              {fila.cantidad} {unidad[fila.cantidad === 1 ? 0 : 1]}
             </span>
           </div>
         </li>

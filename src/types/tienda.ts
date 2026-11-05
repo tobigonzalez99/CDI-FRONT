@@ -1,4 +1,5 @@
 import type { ISODateString } from "./api";
+import type { IngresosDelMes, TotalPorClave } from "./pago";
 
 /**
  * Tienda online: catálogo (tarea 1).
@@ -309,6 +310,15 @@ export interface FiltrosPedidosAdmin {
   estado?: EstadoPedido;
   /** Código, nombre, apellido o DNI del comprador. */
   buscar?: string;
+}
+
+/** Dashboard de ventas: últimos 6 meses. Solo cuentan los pedidos pagados. */
+export interface VentasTienda {
+  /** Del más viejo al mes actual, con los meses sin ventas en cero. */
+  ventasPorMes: IngresosDelMes[];
+  porCategoria: TotalPorClave[];
+  masVendidos: { productoNombre: string; unidades: number; total: number }[];
+  pendientes: { porCobrar: number; aPreparar: number; paraRetirar: number };
 }
 
 export interface CompradorInput {
