@@ -197,3 +197,30 @@ export const checkoutSchema = z
   });
 
 export type CheckoutFormValues = z.infer<typeof checkoutSchema>;
+
+export const arrepentimientoSchema = z.object({
+  codigo: z
+    .string()
+    .trim()
+    .min(1, "Ingresá el número de pedido")
+    .max(20, "Revisá el número de pedido")
+    .toUpperCase(),
+  email: z.string().trim().min(1, "Ingresá el correo").email("Ingresá un correo válido"),
+  dni,
+});
+
+export type ArrepentimientoFormValues = z.infer<typeof arrepentimientoSchema>;
+
+export const resolverArrepentimientoSchema = z
+  .object({
+    resultado: z.enum(["ACEPTADO", "RECHAZADO"]),
+    nota: z.string().trim().max(300, "Hasta 300 caracteres"),
+    reponerStock: z.boolean(),
+  })
+  .superRefine((valores, ctx) => {
+    if (valores.resultado === "RECHAZADO" && valores.nota.length < 3) {
+      ctx.addIssue({ code: "custom", path: ["nota"], message: "Contale al comprador por qué se rechaza" });
+    }
+  });
+
+export type ResolverArrepentimientoFormValues = z.infer<typeof resolverArrepentimientoSchema>;

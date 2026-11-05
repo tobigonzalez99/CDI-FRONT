@@ -11,6 +11,7 @@ import {
   listarTalles,
   obtenerMiPedido,
   seguirPedido,
+  solicitarArrepentimiento,
   listarProductos,
   obtenerConfiguracion,
   obtenerMiDescuento,
@@ -88,6 +89,15 @@ export function useCotizacion(items: ItemCarritoInput[], habilitada = true) {
     enabled: habilitada && items.length > 0,
     placeholderData: keepPreviousData,
     staleTime: 0,
+  });
+}
+
+export function useSolicitarArrepentimiento() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: solicitarArrepentimiento,
+    // El pedido ahora muestra el trámite, en Mis compras y en el seguimiento.
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: TIENDA_QUERY_KEY }),
   });
 }
 

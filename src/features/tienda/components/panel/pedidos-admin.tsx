@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import Link from "next/link";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, parseISO } from "date-fns";
@@ -36,6 +37,7 @@ const VISTAS: { estado?: EstadoPedido; etiqueta: string }[] = [
   { estado: "PREPARADO", etiqueta: "Listos para retirar" },
   { estado: "RETIRADO", etiqueta: "Retirados" },
   { estado: "CANCELADO", etiqueta: "Cancelados" },
+  { estado: "DEVUELTO", etiqueta: "Devueltos" },
 ];
 
 const nombreDe = (pedido: PedidoAdmin) => `${pedido.comprador.nombre} ${pedido.comprador.apellido}`;
@@ -270,6 +272,8 @@ function TarjetaPedido({
   onAvanzar: (paso: Paso) => void;
   onCancelar: () => void;
 }) {
+  // Con un arrepentimiento sin resolver el pedido queda quieto: la API lo rechaza.
+  const bloqueado = pedido.arrepentimiento?.estado === "PENDIENTE";
   const pasos = PASOS[pedido.estado] ?? [];
   const { retiro } = pedido;
 
@@ -369,7 +373,17 @@ function TarjetaPedido({
         </ol>
       </details>
 
-      {pasos.length > 0 && (
+      {bloqueado && (
+        <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">
+          Bloqueado por el arrepentimiento {pedido.arrepentimiento?.tramite}.{" "}
+          <Link href="/tienda/panel/arrepentimientos" className="font-semibold underline">
+            Resolvelo
+          </Link>{" "}
+          para seguir con el pedido.
+        </p>
+      )}
+
+      {pasos.length > 0 && !bloqueado && (
         <div className="mt-4 flex flex-wrap justify-end gap-2 border-t pt-4">
           <Button variant="ghost" size="sm" onClick={onCancelar}>
             Cancelar pedido

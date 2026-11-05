@@ -3,11 +3,13 @@ import type { PaginatedResponse } from "@/types/api";
 import type { TipoSocio } from "@/types/socio";
 import type {
   ActualizarProductoInput,
+  Arrepentimiento,
   CambioEstadoPedido,
   CategoriaTienda,
   ConfiguracionTienda,
   CrearProductoInput,
   EstadoPedido,
+  FiltrosArrepentimientos,
   FiltrosPedidosAdmin,
   FiltrosProductosAdmin,
   MovimientoStock,
@@ -16,6 +18,7 @@ import type {
   OperadorTienda,
   PedidoAdmin,
   ProductoAdmin,
+  ResolverArrepentimientoInput,
   VentasTienda,
 } from "@/types/tienda";
 
@@ -163,6 +166,26 @@ export async function cambiarEstadoPedido(
   input: CambioEstadoPedido,
 ): Promise<PedidoAdmin> {
   const { data } = await api.post<PedidoAdmin>(`${BASE}/pedidos/${codigo}/estado`, input);
+  return data;
+}
+
+// -------------------------------------------------------- Arrepentimientos
+
+export async function listarArrepentimientos(
+  filtros: FiltrosArrepentimientos,
+): Promise<PaginatedResponse<Arrepentimiento> & { pendientes: number }> {
+  const { data } = await api.get<PaginatedResponse<Arrepentimiento> & { pendientes: number }>(
+    `${BASE}/arrepentimientos`,
+    { params: filtros },
+  );
+  return data;
+}
+
+export async function resolverArrepentimiento(
+  id: string,
+  input: ResolverArrepentimientoInput,
+): Promise<Arrepentimiento> {
+  const { data } = await api.post<Arrepentimiento>(`${BASE}/arrepentimientos/${id}/resolver`, input);
   return data;
 }
 

@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { Ban, Check, Clock, Store } from "lucide-react";
+import { Ban, Check, Clock, Store, Undo2 } from "lucide-react";
 
 import { FotoProducto } from "@/features/tienda/components/foto-producto";
 import { formatearMonto } from "@/lib/formato";
 import { cn } from "@/lib/utils";
-import { ETIQUETAS_ESTADO_PEDIDO, type EstadoPedido, type Pedido } from "@/types/tienda";
+import {
+  ETIQUETAS_ARREPENTIMIENTO,
+  ETIQUETAS_ESTADO_PEDIDO,
+  type EstadoPedido,
+  type Pedido,
+} from "@/types/tienda";
 
 function fechaHora(fecha: string): string {
   return format(parseISO(fecha), "dd/MM 'a las' HH:mm");
@@ -25,6 +30,7 @@ export function EtiquetaEstadoPedido({ estado }: { estado: EstadoPedido }) {
       className={cn(
         "rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap",
         estado === "CANCELADO" && "bg-destructive/10 text-destructive",
+        estado === "DEVUELTO" && "bg-muted text-muted-foreground",
         estado === "PENDIENTE_PAGO" && "bg-amber-100 text-amber-900",
         (estado === "PAGADO" || estado === "PREPARADO") && "bg-sky-100 text-sky-900",
         estado === "RETIRADO" && "bg-emerald-100 text-emerald-900",
@@ -41,6 +47,8 @@ export function EtiquetaEstadoPedido({ estado }: { estado: EstadoPedido }) {
  */
 export function DetallePedido({ pedido }: { pedido: Pedido }) {
   const cancelado = pedido.estado === "CANCELADO";
+  const devuelto = pedido.estado === "DEVUELTO";
+  const { arrepentimiento } = pedido;
   const actual = ETAPAS.findIndex((etapa) => etapa.estado === pedido.estado);
   const { retiro } = pedido;
   const hayRetiro = retiro.lugar || retiro.direccion || retiro.horarios;
@@ -67,7 +75,25 @@ export function DetallePedido({ pedido }: { pedido: Pedido }) {
         </div>
       )}
 
-      {cancelado ? (
+      {arrepentimiento && (
+        <div className="flex items-start gap-3 rounded-2xl bg-muted p-5">
+          <Undo2 className="mt-0.5 size-5 shrink-0" aria-hidden />
+          <div className="text-sm">
+            <p className="font-semibold">
+              Arrepentimiento {arrepentimiento.tramite}:{" "}
+              {ETIQUETAS_ARREPENTIMIENTO[arrepentimiento.estado].toLowerCase()}
+            </p>
+            <p className="text-muted-foreground">
+              {arrepentimiento.nota ??
+                (arrepentimiento.estado === "PENDIENTE"
+                  ? "El club lo está revisando y te responde por correo."
+                  : "Te escribimos por correo con el detalle.")}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {devuelto ? null : cancelado ? (
         <div className="flex items-start gap-3 rounded-2xl bg-destructive/10 p-5 text-destructive">
           <Ban className="mt-0.5 size-5 shrink-0" aria-hidden />
           <div className="text-sm">
@@ -202,6 +228,16 @@ export function DetallePedido({ pedido }: { pedido: Pedido }) {
               </p>
             )}
           </div>
+
+          {!cancelado && !devuelto && !arrepentimiento && (
+            <Link
+              href={`/tienda/arrepentimiento?pedido=${pedido.codigo}`}
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground underline hover:text-foreground"
+            >
+              <Undo2 className="size-4" aria-hidden />
+              Arrepentirme de esta compra
+            </Link>
+          )}
         </section>
       </div>
     </div>

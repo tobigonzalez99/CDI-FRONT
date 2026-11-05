@@ -1,6 +1,8 @@
 import { api } from "@/lib/api/client";
 import type { PaginatedResponse } from "@/types/api";
 import type {
+  ArrepentimientoCreado,
+  ArrepentimientoInput,
   CategoriaTienda,
   Cotizacion,
   CrearPedidoInput,
@@ -15,6 +17,12 @@ import type {
 } from "@/types/tienda";
 
 /** Endpoints públicos de la tienda: no piden sesión, salvo `mi-descuento`. */
+
+/** Público: el código, el correo y el DNI juntos identifican la compra. */
+export async function solicitarArrepentimiento(input: ArrepentimientoInput): Promise<ArrepentimientoCreado> {
+  const { data } = await api.post<ArrepentimientoCreado>("/tienda/arrepentimientos", input);
+  return data;
+}
 
 export async function listarCategorias(): Promise<CategoriaTienda[]> {
   const { data } = await api.get<CategoriaTienda[]>("/tienda/categorias");

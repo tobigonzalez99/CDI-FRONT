@@ -254,7 +254,14 @@ export interface ItemCarritoInput {
 export const MAXIMO_UNIDADES_POR_PRODUCTO = 10;
 export const MAXIMO_PRODUCTOS_DISTINTOS = 20;
 
-export const ESTADOS_PEDIDO = ["PENDIENTE_PAGO", "PAGADO", "PREPARADO", "RETIRADO", "CANCELADO"] as const;
+export const ESTADOS_PEDIDO = [
+  "PENDIENTE_PAGO",
+  "PAGADO",
+  "PREPARADO",
+  "RETIRADO",
+  "CANCELADO",
+  "DEVUELTO",
+] as const;
 export type EstadoPedido = (typeof ESTADOS_PEDIDO)[number];
 
 export const ETIQUETAS_ESTADO_PEDIDO: Record<EstadoPedido, string> = {
@@ -263,6 +270,7 @@ export const ETIQUETAS_ESTADO_PEDIDO: Record<EstadoPedido, string> = {
   PREPARADO: "Listo para retirar",
   RETIRADO: "Retirado",
   CANCELADO: "Cancelado",
+  DEVUELTO: "Devuelto",
 };
 
 export interface ItemPedido {
@@ -294,6 +302,29 @@ export interface Pedido {
   total: number;
   motivoCancelacion: string | null;
   historial: { estado: EstadoPedido; fecha: ISODateString }[];
+  /** El trámite del botón de arrepentimiento, si lo hay. */
+  arrepentimiento: { tramite: string; estado: EstadoArrepentimiento; nota: string | null } | null;
+}
+
+export type EstadoArrepentimiento = "PENDIENTE" | "ACEPTADO" | "RECHAZADO";
+
+export const ETIQUETAS_ARREPENTIMIENTO: Record<EstadoArrepentimiento, string> = {
+  PENDIENTE: "Pendiente",
+  ACEPTADO: "Aceptado",
+  RECHAZADO: "Rechazado",
+};
+
+export interface ArrepentimientoInput {
+  codigo: string;
+  email: string;
+  dni: string;
+}
+
+export interface ArrepentimientoCreado {
+  /** Código de trámite, como "A-0001". */
+  tramite: string;
+  /** El pedido. */
+  codigo: string;
 }
 
 /** Un pedido en el panel: suma el DNI y quién hizo cada cambio. */
@@ -331,6 +362,31 @@ export interface VentasTienda {
   /** De mayor a menor. `medio` es `null` en lo cobrado antes de guardarlo. */
   porMedio: { medio: MedioPago | null; total: number; cantidad: number }[];
   pendientes: { porCobrar: number; aPreparar: number; paraRetirar: number };
+}
+
+export interface Arrepentimiento {
+  id: string;
+  tramite: string;
+  estado: EstadoArrepentimiento;
+  createdAt: ISODateString;
+  resueltoEn: ISODateString | null;
+  resueltoPor: string | null;
+  nota: string | null;
+  pedido: PedidoAdmin;
+}
+
+export interface FiltrosArrepentimientos {
+  page: number;
+  pageSize: number;
+  estado?: EstadoArrepentimiento;
+}
+
+export interface ResolverArrepentimientoInput {
+  resultado: "ACEPTADO" | "RECHAZADO";
+  /** Obligatoria al rechazar: la ve el comprador. */
+  nota?: string;
+  /** Al aceptar: la prenda puede volver en mal estado. */
+  reponerStock?: boolean;
 }
 
 export interface CompradorInput {

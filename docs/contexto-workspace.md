@@ -821,6 +821,33 @@ endpoints:** el seguimiento público sigue sin mostrarlo.
   pedidos, y `medio` es `null` en los cobrados antes de que se guardara.
 - **No toca `pagos`:** la plata de la tienda no se mezcla con la de las cuotas.
 
+### Tienda online — botón de arrepentimiento (tarea 5, backend implementado)
+
+Lo exige la Res. 424/2020 en toda venta online: el comprador revoca la compra dentro de
+los 10 días corridos, sin dar motivo. **No es un sistema de cambios ni de devoluciones**,
+que por ahora no hay: `DEVUELTO` es solo el cierre de un arrepentimiento aceptado.
+
+| Método | Ruta | Acceso | Notas |
+|---|---|---|---|
+| POST | `/tienda/arrepentimientos` | **público** | `{ codigo, email, dni }` → `201 { tramite: 'A-0001', codigo }`. Máx. 5 por minuto y por IP |
+| GET | `/tienda/admin/arrepentimientos` | `ADMIN` y `TIENDA` | Paginado, los más nuevos primero. Filtro `estado`. Suma `pendientes` para el indicador. Cada fila: `{ id, tramite, estado, createdAt, resueltoEn, resueltoPor, nota, pedido: PedidoAdmin }` |
+| POST | `/tienda/admin/arrepentimientos/:id/resolver` | `ADMIN` y `TIENDA` | `{ resultado: 'ACEPTADO' \| 'RECHAZADO', nota?, reponerStock? }` → `200` con la fila. Ya resuelto: `409` |
+
+- **Pedir:** si los tres datos no coinciden, `404` con el mismo mensaje, sin decir cuál
+  falló. `409` con `message` para mostrar tal cual si ya se pidió (trae el trámite), si
+  el pedido está `CANCELADO` o si pasaron 10 días desde `RETIRADO`, contados en la hora del
+  club. Sin retirar, siempre se acepta. Un trámite por pedido (índice único).
+- **El aviso al club es el indicador del panel:** el admin no tiene correo. Al comprador
+  le llega el código de trámite al pedirlo, y otro correo con el resultado.
+- **Aceptar** deja el pedido en `DEVUELTO`, que sale de las ventas y se alcanza solo por
+  acá, nunca por `POST /estado`. **No mueve plata:** se devuelve por fuera hasta la tarea 6.
+- **`reponerStock`** decide sobre lo que el comprador se llevó, que puede volver en mal
+  estado. **Un pedido sin retirar devuelve sus unidades siempre**, porque nunca salió del club.
+- **Rechazar** exige `nota`, que ve el comprador, y deja el pedido como estaba.
+- **Con un trámite `PENDIENTE` el pedido queda quieto:** `POST /estado` responde `409` y el
+  control de vencidos lo saltea. Si se rechaza, sigue su curso y puede vencer.
+- Cada `Pedido` (público y panel) trae `arrepentimiento: { tramite, estado, nota } | null`.
+
 ### Disciplinas (implementado)
 
 Actividades del club. Reemplazan al menú "Fútbol" por **"Disciplinas"**, que despliega
@@ -1008,7 +1035,7 @@ los de una base existente, editarlos desde el panel (`PATCH /tipos-socio/:id`).
 - `debitos_automaticos`: débito automático de cada socio (`socio_id`, `estado` = `PENDIENTE` | `ACTIVO` | `PAUSADO` | `CANCELADO`, `plan_id` único, `init_point`, `suscripcion_id` único, `monto`, `cancelado_en`, `motivo_cancelacion`). A lo sumo uno no cancelado por socio.
 - `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, `origen` (`PANEL` | `MERCADO_PAGO`), quién registró (nulo solo en los cobros online), datos de anulación, y la devolución o contracargo detectado en Mercado Pago: `devolucion` = `DEVOLUCION` | `DEVOLUCION_PARCIAL` | `CONTRACARGO`, `monto_devuelto`, `devolucion_en`, `vigencia_revertida` y `devolucion_revisada_en`).
 - `tipos_socio.descuento_tienda` (0–100) y `usuarios.activo` (un usuario inactivo no entra; lo usan los operadores de tienda).
-- Esquema `tienda`: `categorias` (`slug` único, `orden`, `activa`), `productos` (`slug` único, `precio` numeric, `descripcion` Markdown, `destacado`, `activo`), `variantes` (un talle de un producto, `talle` nulo = sin talles, `stock` ≥ 0, `orden`, `activa`), `imagenes` (ruta, orden, ancho y alto), `movimientos_stock` (cantidad, stock resultante, motivo `INGRESO` \| `AJUSTE` \| `VENTA` \| `CANCELACION`, quién) y `configuracion` (una fila: datos de retiro, umbral de últimas unidades y `horas_reserva`). Pedidos: `pedidos` (`numero` correlativo → código `T-0042`, `estado`, `socio_id` si compró un socio con sesión, datos del comprador y de quien retira, `subtotal`, `descuento_porcentaje`, `descuento_monto`, `total`, `vence_en`, `seguimiento_hash` SHA-256 único, `motivo_cancelacion`), `items_pedido` (nombre, talle y precios congelados al comprar) e `historial_pedidos` (cada estado, cuándo y quién). `movimientos_stock.pedido_id` apunta al pedido de una venta o cancelación.
+- Esquema `tienda`: `categorias` (`slug` único, `orden`, `activa`), `productos` (`slug` único, `precio` numeric, `descripcion` Markdown, `destacado`, `activo`), `variantes` (un talle de un producto, `talle` nulo = sin talles, `stock` ≥ 0, `orden`, `activa`), `imagenes` (ruta, orden, ancho y alto), `movimientos_stock` (cantidad, stock resultante, motivo `INGRESO` \| `AJUSTE` \| `VENTA` \| `CANCELACION`, quién) y `configuracion` (una fila: datos de retiro, umbral de últimas unidades y `horas_reserva`). Pedidos: `pedidos` (`numero` correlativo → código `T-0042`, `estado`, `socio_id` si compró un socio con sesión, datos del comprador y de quien retira, `subtotal`, `descuento_porcentaje`, `descuento_monto`, `total`, `vence_en`, `seguimiento_hash` SHA-256 único, `motivo_cancelacion`), `items_pedido` (nombre, talle y precios congelados al comprar) e `historial_pedidos` (cada estado, cuándo y quién). `movimientos_stock.pedido_id` apunta al pedido de una venta o cancelación. `arrepentimientos`: `numero` correlativo → trámite `A-0001`, `pedido_id` único, `estado`, quién lo resolvió y `nota`.
 - `paginas`: secciones de contenido editable (`slug` único, `titulo`, `resumen`, `contenido` en Markdown, `publicada`).
 - `disciplinas`: actividades del menú (`slug` único, `orden`, `activa`). Lista plana, sin jerarquía.
 - `solicitudes_socio`: postulaciones pendientes (datos del formulario + `foto_path` + `tipo_socio_id` + `estado` = `PENDIENTE_PAGO` | `REQUIERE_REVISION`, `vence_en`, `motivo_revision`). `dni` y `email` únicos. Se borra al darse el alta, al rechazarla o si el pago se rechaza o vence.

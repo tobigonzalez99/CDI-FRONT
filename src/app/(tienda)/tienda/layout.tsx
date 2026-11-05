@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import { CarritoProvider } from "@/features/tienda/carrito/carrito-context";
-import { BarraMaqueta } from "@/features/tienda/maqueta/barra-maqueta";
 
 /**
  * Tienda online. En producción se va a servir en tienda.cdindependencia.com.ar;
@@ -15,7 +14,7 @@ export const metadata: Metadata = {
 export default function TiendaLayout({ children }: { children: React.ReactNode }) {
   return (
     <CarritoProvider>
-      <BarraMaqueta />
+      
       {children}
     </CarritoProvider>
   );

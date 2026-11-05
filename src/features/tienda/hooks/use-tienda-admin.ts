@@ -16,6 +16,7 @@ import {
   crearCategoria,
   crearOperador,
   crearProducto,
+  listarArrepentimientos,
   listarCategoriasAdmin,
   listarMovimientos,
   listarOperadores,
@@ -27,14 +28,17 @@ import {
   obtenerVentas,
   ordenarImagenes,
   resetearPasswordOperador,
+  resolverArrepentimiento,
   subirImagenes,
 } from "@/features/tienda/api/tienda-admin.api";
 import { TIENDA_QUERY_KEY } from "@/features/tienda/hooks/use-tienda";
 import type {
   CambioEstadoPedido,
+  FiltrosArrepentimientos,
   FiltrosPedidosAdmin,
   FiltrosProductosAdmin,
   ProductoAdmin,
+  ResolverArrepentimientoInput,
 } from "@/types/tienda";
 
 const PANEL_KEY = [...TIENDA_QUERY_KEY, "panel"] as const;
@@ -61,6 +65,24 @@ export function useCambiarEstadoPedido() {
   return useMutation({
     mutationFn: ({ codigo, ...input }: CambioEstadoPedido & { codigo: string }) =>
       cambiarEstadoPedido(codigo, input),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: PANEL_KEY }),
+  });
+}
+
+export function useArrepentimientos(filtros: FiltrosArrepentimientos) {
+  return useQuery({
+    queryKey: [...PANEL_KEY, "arrepentimientos", filtros],
+    queryFn: () => listarArrepentimientos(filtros),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Aceptar cambia el pedido, las ventas y quizá el stock: se refresca todo el panel. */
+export function useResolverArrepentimiento() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: ResolverArrepentimientoInput & { id: string }) =>
+      resolverArrepentimiento(id, input),
     onSettled: () => queryClient.invalidateQueries({ queryKey: PANEL_KEY }),
   });
 }
