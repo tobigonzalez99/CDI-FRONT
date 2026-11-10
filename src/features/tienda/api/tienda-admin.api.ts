@@ -47,7 +47,7 @@ export async function crearCategoria(input: {
 
 export async function actualizarCategoria(
   id: string,
-  input: Partial<Pick<CategoriaTienda, "nombre" | "slug" | "orden" | "activa">>,
+  input: Partial<Pick<CategoriaTienda, "nombre" | "slug" | "orden" | "activa" | "permitePreventa">>,
 ): Promise<CategoriaTienda> {
   const { data } = await api.patch<CategoriaTienda>(`${BASE}/categorias/${id}`, input);
   return data;

@@ -615,7 +615,8 @@ arrepentimiento y pasarela vienen después.
 - Cada producto es lo que muestra su foto: **solo se elige el talle**, sin colores
   ni personalización.
 - Solo se vende con stock, solo online, con retiro en el club. Desde el 2026-11-09
-  hay además **preventa** por tiempo limitado, solo para ropa (ver más abajo).
+  hay además **preventa** por tiempo limitado, por ahora solo en Indumentaria urbana
+  (ver más abajo).
 - Descuento de socio por categoría (Activo y Campeón), configurable, **solo con la
   cuota al día**.
 - Botón de arrepentimiento: avisa al admin, que revisa el caso y devuelve desde
@@ -862,8 +863,12 @@ producto.
 | DELETE | `/tienda/admin/productos/:id/preventa` | `ADMIN` y `TIENDA` | La cierra ya → `ProductoAdmin`. `409` si no está en preventa |
 | GET | `/tienda/admin/preventas` | `ADMIN` y `TIENDA` | Qué encargar: `[{ productoId, nombre, hasta, entrega, activa, unidades, unidadesPagadas, talles: [{ talle, unidades, unidadesPagadas }] }]`, la más reciente primero |
 
-- **Solo ropa:** se abre únicamente en productos **con talles**. En uno sin talles
-  responde `fieldErrors.hasta`.
+- **Qué se puede vender en preventa lo decide la categoría** (`permitePreventa`). El
+  cliente todavía lo está definiendo: **por ahora, solo Indumentaria urbana**
+  (2026-11-10). Se cambia desde `PATCH /tienda/admin/categorias/:id` con
+  `{ permitePreventa }`, sin tocar código; apagarlo no cierra las preventas abiertas.
+  Además el producto tiene que tener **talles**. Si no cumple alguna de las dos, abrir
+  responde `fieldErrors.hasta`. `ProductoAdmin.puedePreventa` dice si se le puede abrir.
 - **En la tienda:** cada producto trae `preventa: { hasta, entrega } | null`. En preventa,
   su `disponibilidad` y la de todos sus talles es `DISPONIBLE`, no va al final de la
   grilla por agotado, y sus talles cuentan para el filtro `talle` y para `/tienda/talles`.
@@ -1074,7 +1079,7 @@ los de una base existente, editarlos desde el panel (`PATCH /tipos-socio/:id`).
 - `debitos_automaticos`: débito automático de cada socio (`socio_id`, `estado` = `PENDIENTE` | `ACTIVO` | `PAUSADO` | `CANCELADO`, `plan_id` único, `init_point`, `suscripcion_id` único, `monto`, `cancelado_en`, `motivo_cancelacion`). A lo sumo uno no cancelado por socio.
 - `pagos`: cobro de cuota (`socio_id`, `cuenta_id`, `monto` numeric, `medio_pago`, `fecha_pago`, período cubierto, `comprobante`, `origen` (`PANEL` | `MERCADO_PAGO`), quién registró (nulo solo en los cobros online), datos de anulación, y la devolución o contracargo detectado en Mercado Pago: `devolucion` = `DEVOLUCION` | `DEVOLUCION_PARCIAL` | `CONTRACARGO`, `monto_devuelto`, `devolucion_en`, `vigencia_revertida` y `devolucion_revisada_en`).
 - `tipos_socio.descuento_tienda` (0–100) y `usuarios.activo` (un usuario inactivo no entra; lo usan los operadores de tienda).
-- Esquema `tienda`: `categorias` (`slug` único, `orden`, `activa`), `productos` (`slug` único, `precio` numeric, `descripcion` Markdown, `destacado`, `activo`, `preventa_hasta` y `preventa_entrega`), `variantes` (un talle de un producto, `talle` nulo = sin talles, `stock` ≥ 0, `orden`, `activa`), `imagenes` (ruta, orden, ancho y alto), `movimientos_stock` (cantidad, stock resultante, motivo `INGRESO` \| `AJUSTE` \| `VENTA` \| `CANCELACION`, quién) y `configuracion` (una fila: datos de retiro, umbral de últimas unidades y `horas_reserva`). Pedidos: `pedidos` (`numero` correlativo → código `T-0042`, `estado`, `socio_id` si compró un socio con sesión, datos del comprador y de quien retira, `subtotal`, `descuento_porcentaje`, `descuento_monto`, `total`, `vence_en`, `seguimiento_hash` SHA-256 único, `motivo_cancelacion`), `items_pedido` (nombre, talle y precios congelados al comprar, y `preventa`) e `historial_pedidos` (cada estado, cuándo y quién). `movimientos_stock.pedido_id` apunta al pedido de una venta o cancelación. `arrepentimientos`: `numero` correlativo → trámite `A-0001`, `pedido_id` único, `estado`, quién lo resolvió y `nota`.
+- Esquema `tienda`: `categorias` (`slug` único, `orden`, `activa`, `permite_preventa`), `productos` (`slug` único, `precio` numeric, `descripcion` Markdown, `destacado`, `activo`, `preventa_hasta` y `preventa_entrega`), `variantes` (un talle de un producto, `talle` nulo = sin talles, `stock` ≥ 0, `orden`, `activa`), `imagenes` (ruta, orden, ancho y alto), `movimientos_stock` (cantidad, stock resultante, motivo `INGRESO` \| `AJUSTE` \| `VENTA` \| `CANCELACION`, quién) y `configuracion` (una fila: datos de retiro, umbral de últimas unidades y `horas_reserva`). Pedidos: `pedidos` (`numero` correlativo → código `T-0042`, `estado`, `socio_id` si compró un socio con sesión, datos del comprador y de quien retira, `subtotal`, `descuento_porcentaje`, `descuento_monto`, `total`, `vence_en`, `seguimiento_hash` SHA-256 único, `motivo_cancelacion`), `items_pedido` (nombre, talle y precios congelados al comprar, y `preventa`) e `historial_pedidos` (cada estado, cuándo y quién). `movimientos_stock.pedido_id` apunta al pedido de una venta o cancelación. `arrepentimientos`: `numero` correlativo → trámite `A-0001`, `pedido_id` único, `estado`, quién lo resolvió y `nota`.
 - `paginas`: secciones de contenido editable (`slug` único, `titulo`, `resumen`, `contenido` en Markdown, `publicada`).
 - `disciplinas`: actividades del menú (`slug` único, `orden`, `activa`). Lista plana, sin jerarquía.
 - `solicitudes_socio`: postulaciones pendientes (datos del formulario + `foto_path` + `tipo_socio_id` + `estado` = `PENDIENTE_PAGO` | `REQUIERE_REVISION`, `vence_en`, `motivo_revision`). `dni` y `email` únicos. Se borra al darse el alta, al rechazarla o si el pago se rechaza o vence.

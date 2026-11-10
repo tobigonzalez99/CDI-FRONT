@@ -192,7 +192,7 @@ export function EditorProducto({ id }: { id: string }) {
           >
             <TallesYStock producto={producto} />
           </Seccion>
-          {producto.tieneTalles && (
+          {(producto.puedePreventa || producto.preventa?.activa) && (
             <Seccion
               titulo="Preventa"
               descripcion="Por un tiempo limitado, el producto se vende a pedido y el club encarga lo que se pidió."

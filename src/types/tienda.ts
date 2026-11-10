@@ -16,6 +16,8 @@ export interface CategoriaTienda {
   slug: string;
   orden: number;
   activa: boolean;
+  /** Sus productos con talles se pueden vender a pedido. */
+  permitePreventa: boolean;
 }
 
 /** URL absoluta, en WebP. La primera de un producto es la de la grilla. */
@@ -134,6 +136,8 @@ export interface ProductoAdmin {
   tieneTalles: boolean;
   stockTotal: number;
   stockBajo: boolean;
+  /** Su categoría admite preventa y tiene talles. */
+  puedePreventa: boolean;
   /** La abierta o la última que tuvo; con `activa: false` ya cerró. */
   preventa: (PreventaProducto & { activa: boolean }) | null;
   variantes: VarianteAdmin[];

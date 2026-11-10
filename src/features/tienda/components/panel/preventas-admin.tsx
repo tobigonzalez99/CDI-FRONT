@@ -18,7 +18,7 @@ export function PreventasAdmin() {
         <h1 className="font-heading text-2xl font-bold">Preventas</h1>
         <p className="text-sm text-muted-foreground">
           Lo que hay que encargar de cada producto. No cuentan los pedidos cancelados ni los
-          devueltos. Una preventa se abre desde la ficha del producto, y solo en los que tienen talles.
+          devueltos. Una preventa se abre desde la ficha del producto, si tiene talles y su categoría la admite.
         </p>
       </div>
 

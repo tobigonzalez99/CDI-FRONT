@@ -112,6 +112,23 @@ function FilaCategoria({
               {!categoria.activa && <span className="ml-2 text-xs font-normal text-muted-foreground">Desactivada</span>}
             </p>
             <p className="text-xs text-muted-foreground">/{categoria.slug}</p>
+            <label className="mt-1.5 flex w-fit items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                className="size-3.5 accent-brand-red"
+                checked={categoria.permitePreventa}
+                disabled={actualizar.isPending}
+                onChange={(evento) =>
+                  void guardar(
+                    { id: categoria.id, permitePreventa: evento.target.checked },
+                    evento.target.checked
+                      ? `${categoria.nombre} ahora admite preventas`
+                      : `${categoria.nombre} ya no admite preventas nuevas`,
+                  )
+                }
+              />
+              Admite preventa
+            </label>
           </>
         )}
       </div>
@@ -173,7 +190,8 @@ export function CategoriasAdmin() {
         <h1 className="font-heading text-2xl font-bold">Categorías</h1>
         <p className="text-sm text-muted-foreground">
           Son las del menú de la tienda, en este orden. Al desactivar una, sus productos dejan
-          de verse.
+          de verse. «Admite preventa» deja vender a pedido sus productos con talles; sacarlo no
+          cierra las preventas que ya están abiertas.
         </p>
       </div>
 

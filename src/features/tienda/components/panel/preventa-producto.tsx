@@ -94,7 +94,22 @@ export function PreventaDeProducto({ producto }: { producto: ProductoAdmin }) {
             : "Este producto no está en preventa: se vende solo lo que hay en stock."}
       </p>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid gap-4">
+      {!producto.puedePreventa && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-muted-foreground">
+            La categoría {producto.categoria.nombre} ya no admite preventas: esta solo se puede cerrar.
+          </p>
+          <Button type="button" variant="outline" onClick={() => setConfirmando(true)}>
+            Cerrar ahora
+          </Button>
+        </div>
+      )}
+
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+        className={producto.puedePreventa ? "grid gap-4" : "hidden"}
+      >
         <Campo
           id={`${id}-hasta`}
           etiqueta="Cierra el"
