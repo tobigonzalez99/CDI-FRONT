@@ -49,7 +49,9 @@ export interface ProductoResumen {
   /** `false` en vasos, mates y accesorios: se compran sin elegir talle. */
   tieneTalles: boolean;
   disponibilidad: Disponibilidad;
-  /** En preventa se vende a pedido: todos los talles llegan `DISPONIBLE`. */
+  /** Su categoría admite preventa y tiene talles: lleva el botón de preventa. */
+  puedePreventa: boolean;
+  /** La preventa abierta, si la hay. La `disponibilidad` es siempre la del stock. */
   preventa: PreventaProducto | null;
 }
 
@@ -232,7 +234,7 @@ export interface OperadorConPassword {
  * Lo que la API dice de una línea del carrito al cotizar. Una línea con
  * problema no hace fallar la cotización: viene marcada y `valida` es false.
  */
-export type ProblemaLinea = "NO_DISPONIBLE" | "STOCK_INSUFICIENTE";
+export type ProblemaLinea = "NO_DISPONIBLE" | "STOCK_INSUFICIENTE" | "PREVENTA_CERRADA";
 
 export interface LineaCotizada {
   varianteId: string;
@@ -246,7 +248,7 @@ export interface LineaCotizada {
   /** Con el descuento de socio, si corresponde. */
   precioFinal: number;
   subtotal: number;
-  /** Se vende a pedido: nunca da STOCK_INSUFICIENTE. */
+  /** A pedido: no mira el stock. La misma variante puede venir también de stock. */
   preventa: boolean;
   problema: ProblemaLinea | null;
   /** Solo con STOCK_INSUFICIENTE. */
@@ -267,6 +269,8 @@ export interface Cotizacion {
 export interface ItemCarritoInput {
   varianteId: string;
   cantidad: number;
+  /** A pedido, con la preventa abierta. Sin esto se compra del stock. */
+  preventa?: boolean;
 }
 
 /** Topes de la API: 10 unidades de cada producto y 20 productos distintos. */

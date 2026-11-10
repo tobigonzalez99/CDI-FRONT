@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, PackageX, ShoppingBag } from "lucide-react";
+import { CalendarClock, ChevronRight, PackageX, ShoppingBag } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Cargando, ErrorConsulta } from "@/components/shared/estado-consulta";
@@ -45,10 +45,12 @@ function Ficha({ producto }: { producto: ProductoDetalle }) {
   const [faltaTalle, setFaltaTalle] = useState(false);
 
   const agotado = producto.disponibilidad === "SIN_STOCK";
+  const preventaAbierta = Boolean(producto.preventa);
   const imagenes = producto.imagenes;
   const elegida = producto.variantes.find((variante) => variante.id === varianteId);
 
-  function alAgregar() {
+  /** `enPreventa`: se encarga, sin mirar el stock. Si no, se compra lo que hay. */
+  function alAgregar(enPreventa = false) {
     // Sin talles hay una sola variante y se compra directo.
     const variante = producto.tieneTalles ? elegida : producto.variantes[0];
     if (!variante) {
@@ -56,6 +58,7 @@ function Ficha({ producto }: { producto: ProductoDetalle }) {
       return;
     }
     agregar({
+      preventa: enPreventa || undefined,
       varianteId: variante.id,
       slug: producto.slug,
       nombre: producto.nombre,
@@ -91,7 +94,7 @@ function Ficha({ producto }: { producto: ProductoDetalle }) {
               alt={producto.nombre}
               priority
               sizes="(min-width: 768px) 50vw, 100vw"
-              className={cn(agotado && "opacity-50 grayscale")}
+              className={cn(agotado && !preventaAbierta && "opacity-50 grayscale")}
             />
             {producto.preventa ? (
               <EtiquetaPreventa className="absolute top-3 left-3" />
@@ -133,7 +136,7 @@ function Ficha({ producto }: { producto: ProductoDetalle }) {
 
           {producto.preventa && <AvisoPreventa preventa={producto.preventa} className="mt-6" />}
 
-          {producto.tieneTalles && !agotado && (
+          {producto.tieneTalles && (!agotado || preventaAbierta) && (
             <fieldset className="mt-8">
               <legend className="text-sm font-semibold">
                 Talle
@@ -147,7 +150,7 @@ function Ficha({ producto }: { producto: ProductoDetalle }) {
                     <button
                       key={variante.id}
                       type="button"
-                      disabled={sinStock}
+                      disabled={sinStock && !preventaAbierta}
                       aria-pressed={varianteId === variante.id}
                       aria-label={sinStock ? `Talle ${variante.talle}, sin stock` : `Talle ${variante.talle}`}
                       onClick={() => {
@@ -159,8 +162,8 @@ function Ficha({ producto }: { producto: ProductoDetalle }) {
                         varianteId === variante.id
                           ? "border-brand-black bg-brand-black text-white"
                           : "hover:border-foreground/50",
-                        sinStock &&
-                          "cursor-not-allowed border-dashed bg-muted text-muted-foreground line-through",
+                        sinStock && varianteId !== variante.id && "border-dashed text-muted-foreground",
+                        sinStock && !preventaAbierta && "cursor-not-allowed bg-muted line-through",
                       )}
                     >
                       {variante.talle}
@@ -177,10 +180,12 @@ function Ficha({ producto }: { producto: ProductoDetalle }) {
                 role={faltaTalle ? "alert" : undefined}
               >
                 {faltaTalle
-                  ? "Elegí un talle para agregarlo al carrito."
+                  ? "Elegí un talle primero."
                   : elegida?.disponibilidad === "ULTIMAS_UNIDADES"
                     ? `Últimas unidades en talle ${elegida.talle}.`
-                    : ""}
+                    : elegida?.disponibilidad === "SIN_STOCK"
+                      ? `Sin stock en talle ${elegida.talle}: pedilo en preventa.`
+                      : ""}
               </p>
             </fieldset>
           )}
@@ -190,14 +195,41 @@ function Ficha({ producto }: { producto: ProductoDetalle }) {
               <div className="rounded-xl border border-dashed p-4 text-center">
                 <p className="font-semibold">Sin stock</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Este producto se agotó. Mirá los demás de {producto.categoria.nombre.toLowerCase()}.
+                  {preventaAbierta
+                    ? "No queda stock, pero podés encargarlo en preventa."
+                    : `Este producto se agotó. Mirá los demás de ${producto.categoria.nombre.toLowerCase()}.`}
                 </p>
               </div>
             ) : (
-              <Button size="lg" className="h-12 w-full text-base" onClick={alAgregar}>
+              <Button
+                size="lg"
+                className="h-12 w-full text-base"
+                disabled={elegida?.disponibilidad === "SIN_STOCK"}
+                onClick={() => alAgregar()}
+              >
                 <ShoppingBag className="size-5" aria-hidden />
                 Agregar al carrito
               </Button>
+            )}
+
+            {producto.puedePreventa && (
+              <div className="mt-3">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-12 w-full border-sky-700 text-base text-sky-800 hover:bg-sky-50 disabled:border-border disabled:text-muted-foreground"
+                  disabled={!preventaAbierta}
+                  onClick={() => alAgregar(true)}
+                >
+                  <CalendarClock className="size-5" aria-hidden />
+                  Comprar en preventa
+                </Button>
+                {!preventaAbierta && (
+                  <p className="mt-1.5 text-center text-xs text-muted-foreground">
+                    Próximamente se abrirá la preventa.
+                  </p>
+                )}
+              </div>
             )}
           </div>
 

@@ -15,7 +15,7 @@ import {
 import { FotoProducto } from "@/features/tienda/components/foto-producto";
 import { EtiquetaPreventa, NotaPreventa } from "@/features/tienda/components/preventa";
 import { Retiro } from "@/features/tienda/components/retiro";
-import { useCarrito } from "@/features/tienda/carrito/carrito-context";
+import { esLaLinea, useCarrito, type ItemCarrito } from "@/features/tienda/carrito/carrito-context";
 import { useCotizacion } from "@/features/tienda/hooks/use-tienda";
 import { formatearMonto } from "@/lib/formato";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ import { MAXIMO_UNIDADES_POR_PRODUCTO, type LineaCotizada } from "@/types/tienda
 /** Qué le pasa a una línea, en palabras del comprador. */
 export function textoProblema(linea: LineaCotizada): string | null {
   if (linea.problema === "NO_DISPONIBLE") return "Ya no está a la venta. Quitalo para seguir.";
+  if (linea.problema === "PREVENTA_CERRADA") return "La preventa ya cerró. Quitalo para seguir.";
   if (linea.problema === "STOCK_INSUFICIENTE") {
     return linea.disponibles
       ? `Solo quedan ${linea.disponibles}. Bajá la cantidad para seguir.`
@@ -43,8 +44,8 @@ export function CarritoDrawer() {
   const { items, itemsParaApi, abierto, setAbierto, cambiarCantidad, quitar } = useCarrito();
   const { data: cotizacion, isFetching } = useCotizacion(itemsParaApi, abierto);
 
-  const lineaDe = (varianteId: string) =>
-    cotizacion?.lineas.find((linea) => linea.varianteId === varianteId);
+  const lineaDe = (item: ItemCarrito) =>
+    cotizacion?.lineas.find((linea) => esLaLinea(linea, item.varianteId, Boolean(item.preventa)));
 
   return (
     <Sheet open={abierto} onOpenChange={setAbierto}>
@@ -81,17 +82,18 @@ export function CarritoDrawer() {
         ) : (
           <ul className="flex-1 divide-y overflow-y-auto px-4">
             {items.map((item) => {
-              const linea = lineaDe(item.varianteId);
+              const linea = lineaDe(item);
+              const sinVenta = linea?.problema === "NO_DISPONIBLE" || linea?.problema === "PREVENTA_CERRADA";
               const problema = linea ? textoProblema(linea) : null;
               const conDescuento = linea && linea.precioFinal < linea.precioUnitario;
 
               return (
-                <li key={item.varianteId} className="flex gap-3 py-4">
+                <li key={`${item.varianteId}-${item.preventa ? "p" : "s"}`} className="flex gap-3 py-4">
                   <FotoProducto
                     imagen={item.imagenUrl ? { id: item.varianteId, url: item.imagenUrl, ancho: 1, alto: 1 } : null}
                     alt=""
                     sizes="80px"
-                    className={cn("w-20 shrink-0 rounded-lg", linea?.problema === "NO_DISPONIBLE" && "opacity-50 grayscale")}
+                    className={cn("w-20 shrink-0 rounded-lg", sinVenta && "opacity-50 grayscale")}
                   />
                   <div className="min-w-0 flex-1">
                     <Link
@@ -102,7 +104,7 @@ export function CarritoDrawer() {
                       {linea?.productoNombre ?? item.nombre}
                     </Link>
                     {item.talle && <p className="text-xs text-muted-foreground">Talle {item.talle}</p>}
-                    {linea?.preventa && <EtiquetaPreventa chica className="mt-1 inline-block" />}
+                    {item.preventa && <EtiquetaPreventa chica className="mt-1 inline-block" />}
 
                     {problema && (
                       <p className="mt-1 flex items-start gap-1 text-xs font-medium text-destructive">
@@ -112,7 +114,7 @@ export function CarritoDrawer() {
                     )}
 
                     <div className="mt-2 flex items-center justify-between gap-2">
-                      {linea?.problema === "NO_DISPONIBLE" ? (
+                      {sinVenta ? (
                         <span />
                       ) : (
                         <div className="flex items-center rounded-lg border">
@@ -120,7 +122,7 @@ export function CarritoDrawer() {
                             type="button"
                             aria-label="Restar uno"
                             disabled={item.cantidad === 1}
-                            onClick={() => cambiarCantidad(item.varianteId, item.cantidad - 1)}
+                            onClick={() => cambiarCantidad(item.varianteId, item.cantidad - 1, item.preventa)}
                             className="flex size-8 items-center justify-center disabled:opacity-40"
                           >
                             <Minus className="size-3.5" aria-hidden />
@@ -135,7 +137,7 @@ export function CarritoDrawer() {
                                 linea?.disponibles !== undefined &&
                                 item.cantidad >= linea.disponibles)
                             }
-                            onClick={() => cambiarCantidad(item.varianteId, item.cantidad + 1)}
+                            onClick={() => cambiarCantidad(item.varianteId, item.cantidad + 1, item.preventa)}
                             className="flex size-8 items-center justify-center disabled:opacity-40"
                           >
                             <Plus className="size-3.5" aria-hidden />
@@ -157,7 +159,7 @@ export function CarritoDrawer() {
                   <button
                     type="button"
                     aria-label={`Quitar ${item.nombre}`}
-                    onClick={() => quitar(item.varianteId)}
+                    onClick={() => quitar(item.varianteId, item.preventa)}
                     className="self-start p-1 text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="size-4" aria-hidden />
@@ -170,7 +172,7 @@ export function CarritoDrawer() {
 
         {items.length > 0 && (
           <SheetFooter className="gap-3 border-t">
-            {cotizacion?.lineas.some((linea) => linea.preventa) && <NotaPreventa />}
+            {items.some((item) => item.preventa) && <NotaPreventa />}
             <Retiro className="rounded-lg bg-muted p-3 text-xs text-muted-foreground" />
 
             {cotizacion && cotizacion.descuentoMonto > 0 && (

@@ -11,7 +11,8 @@ import type { ProductoResumen } from "@/types/tienda";
  * a la ficha, que es donde se elige el talle.
  */
 export function TarjetaProducto({ producto }: { producto: ProductoResumen }) {
-  const agotado = producto.disponibilidad === "SIN_STOCK";
+  // Con la preventa abierta se puede encargar aunque no haya stock.
+  const agotado = producto.disponibilidad === "SIN_STOCK" && !producto.preventa;
 
   return (
     <article className="group relative flex flex-col">

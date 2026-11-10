@@ -79,7 +79,7 @@ function Resumen({ cotizacion, cargando }: { cotizacion: Cotizacion | undefined;
             {cotizacion.lineas.map((linea) => {
               const problema = textoProblema(linea);
               return (
-                <li key={linea.varianteId} className="flex items-start gap-3">
+                <li key={`${linea.varianteId}-${linea.preventa ? "p" : "s"}`} className="flex items-start gap-3">
                   <div className="relative">
                     <FotoProducto
                       imagen={linea.imagenUrl ? { id: linea.varianteId, url: linea.imagenUrl, ancho: 1, alto: 1 } : null}

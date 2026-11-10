@@ -34,7 +34,8 @@ export function AvisoPreventa({ preventa, className }: { preventa: PreventaProdu
       <div className="text-sm">
         <p className="font-semibold">Preventa hasta el {fechaCierrePreventa(preventa.hasta)}</p>
         <p>
-          Se hace a pedido: elegí cualquier talle. Lo retirás cuando llegue al club.
+          Con «Comprar en preventa» encargás cualquier talle, aunque no haya stock. Lo retirás cuando
+          llegue al club.
           {preventa.entrega && ` ${preventa.entrega}`}
         </p>
       </div>

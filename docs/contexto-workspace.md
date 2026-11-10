@@ -615,7 +615,7 @@ arrepentimiento y pasarela vienen después.
 - Cada producto es lo que muestra su foto: **solo se elige el talle**, sin colores
   ni personalización.
 - Solo se vende con stock, solo online, con retiro en el club. Desde el 2026-11-09
-  hay además **preventa** por tiempo limitado, por ahora solo en Indumentaria urbana
+  hay además **preventa** por tiempo limitado, por ahora en Camisetas e Indumentaria urbana
   (ver más abajo).
 - Descuento de socio por categoría (Activo y Campeón), configurable, **solo con la
   cuota al día**.
@@ -720,7 +720,7 @@ descuento y stock salen siempre de la base, nunca del carrito.
 - **Cotización:** junta renglones repetidos. Hasta 10 unidades de cada producto y 20
   productos distintos. Una línea con problema se **marca** en vez de fallar:
   `NO_DISPONIBLE` (no existe, o el talle, el producto o la categoría están inactivos)
-  o `STOCK_INSUFICIENTE`, con `disponibles`. `valida: false` si alguna tiene problema. **El total suma todo lo que tiene precio**, también las líneas sin stock suficiente (así el resumen coincide con los renglones); solo queda afuera lo `NO_DISPONIBLE`.
+  o `STOCK_INSUFICIENTE`, con `disponibles` (y `PREVENTA_CERRADA`, ver preventa). `valida: false` si alguna tiene problema. **El total suma todo lo que tiene precio**, también las líneas sin stock suficiente (así el resumen coincide con los renglones); solo queda afuera lo `NO_DISPONIBLE`.
   Trae `descuentoSocio` (`{ porcentaje, motivo }`) para un socio con sesión, `null`
   para un invitado.
 - **Descuento:** el de `/tienda/mi-descuento`, aplicado a cada unidad y redondeado al
@@ -852,10 +852,11 @@ que por ahora no hay: `DEVUELTO` es solo el cierre de un arrepentimiento aceptad
 
 ### Tienda online — preventa (backend implementado)
 
-Pedido del cliente del 2026-11-09: por un tiempo limitado, un producto se vende **a
-pedido**. Mientras dura, **todos sus talles activos se eligen libremente, sin mirar el
-stock**, y el club encarga lo que se pidió. La abre y la cierra el panel, producto por
-producto.
+Pedido del cliente (2026-11-09 y 10): por un tiempo limitado, un producto se vende
+también **a pedido**. Con la preventa abierta **conviven las dos ventas y elige el
+comprador**: "Agregar al carrito" se lleva lo que hay en stock, y "Comprar en preventa"
+encarga **cualquier talle activo, sin mirar el stock**. Vale para todos, socios o no. La
+abre y la cierra el panel, producto por producto.
 
 | Método | Ruta | Acceso | Notas |
 |---|---|---|---|
@@ -864,31 +865,44 @@ producto.
 | GET | `/tienda/admin/preventas` | `ADMIN` y `TIENDA` | Qué encargar: `[{ productoId, nombre, hasta, entrega, activa, unidades, unidadesPagadas, talles: [{ talle, unidades, unidadesPagadas }] }]`, la más reciente primero |
 
 - **Qué se puede vender en preventa lo decide la categoría** (`permitePreventa`). El
-  cliente todavía lo está definiendo: **por ahora, solo Indumentaria urbana**
+  cliente todavía lo está definiendo: **por ahora, Camisetas e Indumentaria urbana**
   (2026-11-10). Se cambia desde `PATCH /tienda/admin/categorias/:id` con
   `{ permitePreventa }`, sin tocar código; apagarlo no cierra las preventas abiertas.
   Además el producto tiene que tener **talles**. Si no cumple alguna de las dos, abrir
-  responde `fieldErrors.hasta`. `ProductoAdmin.puedePreventa` dice si se le puede abrir.
-- **En la tienda:** cada producto trae `preventa: { hasta, entrega } | null`. En preventa,
-  su `disponibilidad` y la de todos sus talles es `DISPONIBLE`, no va al final de la
-  grilla por agotado, y sus talles cuentan para el filtro `talle` y para `/tienda/talles`.
-  `GET /tienda/productos?preventa=true` trae solo los que están en preventa.
+  responde `fieldErrors.hasta`.
+- **`puedePreventa`** (producto público y `ProductoAdmin`): su categoría la admite y
+  tiene talles. En la tienda, esos productos muestran **siempre** el botón de preventa:
+  con `preventa: null` va bloqueado ("Próximamente se abrirá la preventa").
+- **En la tienda:** cada producto trae `preventa: { hasta, entrega } | null` (la abierta).
+  **`disponibilidad` es siempre la real, por stock**, del producto y de cada talle: la usa
+  el botón normal; el de preventa no mira stock. Un producto con la preventa abierta no
+  va al final de la grilla por agotado, y sus talles cuentan para el filtro `talle` y
+  para `/tienda/talles`. `GET /tienda/productos?preventa=true` trae solo los abiertos.
 - **En el panel:** `ProductoAdmin.preventa` es `{ hasta, entrega, activa } | null`: la
   abierta o la última que tuvo. Cerrar deja `activa: false`, no la borra.
-- **Carrito y pedido:** cada línea cotizada y cada renglón del pedido traen
-  `preventa: boolean`, y el `Pedido` trae `preventa` (algún renglón lo es). Una línea
-  en preventa nunca da `STOCK_INSUFICIENTE`. Sigue el tope de 10 unidades por producto.
-  Un carrito puede mezclar preventa y stock.
-- **No toca el stock:** un renglón en preventa no descuenta ni reserva, así que cancelar,
-  vencer o aceptar un arrepentimiento tampoco le devuelve unidades. Cuando llega la
-  mercadería, lo encargado **no se carga como stock**: ya está vendido. Solo el sobrante.
+- **Carrito:** cada ítem es `{ varianteId, cantidad, preventa? }` (`false` por defecto), en
+  la cotización y en `POST /tienda/pedidos`. **La misma variante puede ir dos veces**, una
+  de stock y una en preventa: una línea se identifica por `varianteId` + `preventa`, y
+  cada línea cotizada devuelve los dos.
+  - `preventa: false`: venta normal aunque la preventa esté abierta. Descuenta y reserva
+    stock, y puede dar `STOCK_INSUFICIENTE`.
+  - `preventa: true`: a pedido, no toca el stock. Si el producto no tiene la preventa
+    abierta, la línea trae `problema: 'PREVENTA_CERRADA'` (con su precio, y suma al total
+    que se muestra) y la cotización queda `valida: false`.
+  - **Tope de 10 unidades por línea**, así que de una variante se pueden llevar hasta 10
+    de stock y encargar otras 10. Siguen los 20 renglones por pedido.
+- **Al confirmar**, el `409` de siempre trae `fieldErrors["items.<varianteId>"]` para la
+  línea de stock y `fieldErrors["items.<varianteId>.preventa"]` para la de preventa.
+- **Pedido:** cada renglón trae `preventa: boolean`, y el `Pedido` trae `preventa` (algún
+  renglón lo es).
+- **Lo encargado no toca el stock:** no descuenta ni reserva, así que cancelar, vencer o
+  aceptar un arrepentimiento tampoco le devuelve unidades. Cuando llega la mercadería,
+  lo encargado **no se carga como stock**: ya está vendido. Solo el sobrante.
 - **Se paga igual que cualquier pedido:** nace `PENDIENTE_PAGO` y vence a las
   `horasReserva` si no se paga. Por eso el resumen separa `unidadesPagadas`.
 - **El resumen** cuenta los pedidos `PENDIENTE_PAGO`, `PAGADO`, `PREPARADO` y `RETIRADO`;
   no los cancelados ni los devueltos. Sigue disponible después del cierre.
   `GET /tienda/admin/pedidos?preventa=true` lista los pedidos con algo en preventa.
-- **Si la preventa cierra entre la cotización y la confirmación**, el pedido se trata
-  como venta normal: sin stock responde el `409` de siempre.
 - El correo "Recibimos tu pedido" marca los renglones en preventa, avisa que se entregan
   cuando lleguen al club y lleva el texto de `entrega`.
 

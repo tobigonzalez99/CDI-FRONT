@@ -33,15 +33,24 @@ export interface ItemCarrito {
   precio: number;
   imagenUrl: string | null;
   cantidad: number;
+  /** Encargado en preventa. El mismo talle puede estar también de stock, en otra línea. */
+  preventa?: boolean;
 }
+
+/** Una línea es un talle y cómo se compra: de stock o en preventa. */
+export const esLaLinea = (
+  item: { varianteId: string; preventa?: boolean },
+  varianteId: string,
+  preventa = false,
+) => item.varianteId === varianteId && Boolean(item.preventa) === preventa;
 
 interface CarritoValue {
   items: ItemCarrito[];
   /** Lo que se manda a la API para cotizar o confirmar. */
   itemsParaApi: ItemCarritoInput[];
   agregar: (item: Omit<ItemCarrito, "cantidad">) => void;
-  cambiarCantidad: (varianteId: string, cantidad: number) => void;
-  quitar: (varianteId: string) => void;
+  cambiarCantidad: (varianteId: string, cantidad: number, preventa?: boolean) => void;
+  quitar: (varianteId: string, preventa?: boolean) => void;
   vaciar: () => void;
   abierto: boolean;
   setAbierto: (abierto: boolean) => void;
@@ -97,10 +106,14 @@ export function CarritoProvider({ children }: { children: React.ReactNode }) {
 
     return {
       items,
-      itemsParaApi: items.map(({ varianteId, cantidad }) => ({ varianteId, cantidad })),
+      itemsParaApi: items.map(({ varianteId, cantidad, preventa }) => ({
+        varianteId,
+        cantidad,
+        ...(preventa ? { preventa: true } : {}),
+      })),
       agregar: (nuevo) => {
         // Los mismos topes que la API, para no armar un carrito que va a rechazar.
-        const existente = items.find((item) => item.varianteId === nuevo.varianteId);
+        const existente = items.find((item) => esLaLinea(item, nuevo.varianteId, Boolean(nuevo.preventa)));
         if (existente && existente.cantidad >= MAXIMO_UNIDADES_POR_PRODUCTO) {
           toast.info(`Podés llevar hasta ${MAXIMO_UNIDADES_POR_PRODUCTO} de cada producto.`);
           setAbierto(true);
@@ -114,22 +127,22 @@ export function CarritoProvider({ children }: { children: React.ReactNode }) {
         setItems((actuales) =>
           existente
             ? actuales.map((item) =>
-                item.varianteId === nuevo.varianteId ? { ...item, cantidad: item.cantidad + 1 } : item,
+                item === existente ? { ...item, cantidad: item.cantidad + 1 } : item,
               )
             : [...actuales, { ...nuevo, cantidad: 1 }],
         );
         setAbierto(true);
       },
-      cambiarCantidad: (varianteId, cantidad) =>
+      cambiarCantidad: (varianteId, cantidad, preventa = false) =>
         setItems((actuales) =>
           actuales.map((item) =>
-            item.varianteId === varianteId
+            esLaLinea(item, varianteId, preventa)
               ? { ...item, cantidad: Math.min(Math.max(cantidad, 1), MAXIMO_UNIDADES_POR_PRODUCTO) }
               : item,
           ),
         ),
-      quitar: (varianteId) =>
-        setItems((actuales) => actuales.filter((item) => item.varianteId !== varianteId)),
+      quitar: (varianteId, preventa = false) =>
+        setItems((actuales) => actuales.filter((item) => !esLaLinea(item, varianteId, preventa))),
       vaciar: () => setItems([]),
       abierto,
       setAbierto,
