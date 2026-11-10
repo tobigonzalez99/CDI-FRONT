@@ -3,6 +3,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  abrirPreventa,
   actualizarCategoria,
   actualizarConfiguracion,
   actualizarDescuentoTienda,
@@ -13,6 +14,7 @@ import {
   borrarImagen,
   cambiarEstadoOperador,
   cambiarEstadoPedido,
+  cerrarPreventa,
   crearCategoria,
   crearOperador,
   crearProducto,
@@ -21,6 +23,7 @@ import {
   listarMovimientos,
   listarOperadores,
   listarPedidosAdmin,
+  listarPreventas,
   listarProductosAdmin,
   moverStock,
   obtenerConfiguracionAdmin,
@@ -169,6 +172,24 @@ export function useActualizarVariante() {
       actualizarVariante(id, input),
     onSuccess: alGuardar,
   });
+}
+
+export function usePreventas() {
+  return useQuery({ queryKey: [...PANEL_KEY, "preventas"], queryFn: listarPreventas });
+}
+
+export function useAbrirPreventa() {
+  const alGuardar = useAlGuardarProducto();
+  return useMutation({
+    mutationFn: ({ productoId, ...input }: { productoId: string; hasta: string; entrega?: string }) =>
+      abrirPreventa(productoId, input),
+    onSuccess: alGuardar,
+  });
+}
+
+export function useCerrarPreventa() {
+  const alGuardar = useAlGuardarProducto();
+  return useMutation({ mutationFn: cerrarPreventa, onSuccess: alGuardar });
 }
 
 export function useEliminarTalle() {

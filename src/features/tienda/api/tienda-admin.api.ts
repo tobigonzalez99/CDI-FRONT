@@ -19,6 +19,7 @@ import type {
   PedidoAdmin,
   ProductoAdmin,
   ResolverArrepentimientoInput,
+  ResumenPreventa,
   VentasTienda,
 } from "@/types/tienda";
 
@@ -102,6 +103,27 @@ export async function actualizarVariante(
 /** Sin ventas se borra; con ventas queda oculto y vuelve si se carga de nuevo. */
 export async function eliminarTalle(id: string): Promise<ProductoAdmin> {
   const { data } = await api.delete<ProductoAdmin>(`${BASE}/variantes/${id}`);
+  return data;
+}
+
+// ---------------------------------------------------------------- Preventa
+
+/** Abre la preventa, o cambia la que está abierta. `hasta` es una fecha futura. */
+export async function abrirPreventa(
+  productoId: string,
+  input: { hasta: string; entrega?: string },
+): Promise<ProductoAdmin> {
+  const { data } = await api.put<ProductoAdmin>(`${BASE}/productos/${productoId}/preventa`, input);
+  return data;
+}
+
+export async function cerrarPreventa(productoId: string): Promise<ProductoAdmin> {
+  const { data } = await api.delete<ProductoAdmin>(`${BASE}/productos/${productoId}/preventa`);
+  return data;
+}
+
+export async function listarPreventas(): Promise<ResumenPreventa[]> {
+  const { data } = await api.get<ResumenPreventa[]>(`${BASE}/preventas`);
   return data;
 }
 

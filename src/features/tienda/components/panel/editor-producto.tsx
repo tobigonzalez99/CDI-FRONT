@@ -14,6 +14,7 @@ import { Campo, CLASES_SELECT, CLASES_TEXTAREA } from "@/features/tienda/compone
 import { EstadoProducto } from "@/features/tienda/components/panel/estado-producto";
 import { FotosProducto } from "@/features/tienda/components/panel/fotos-producto";
 import { HistorialStock } from "@/features/tienda/components/panel/historial-stock";
+import { PreventaDeProducto } from "@/features/tienda/components/panel/preventa-producto";
 import { TallesYStock } from "@/features/tienda/components/panel/talles-y-stock";
 import {
   useActualizarProducto,
@@ -191,6 +192,14 @@ export function EditorProducto({ id }: { id: string }) {
           >
             <TallesYStock producto={producto} />
           </Seccion>
+          {producto.tieneTalles && (
+            <Seccion
+              titulo="Preventa"
+              descripcion="Por un tiempo limitado, el producto se vende a pedido y el club encarga lo que se pidió."
+            >
+              <PreventaDeProducto producto={producto} />
+            </Seccion>
+          )}
           <Seccion titulo="Historial de stock">
             <HistorialStock productoId={producto.id} />
           </Seccion>

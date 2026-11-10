@@ -13,6 +13,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { FotoProducto } from "@/features/tienda/components/foto-producto";
+import { EtiquetaPreventa, NotaPreventa } from "@/features/tienda/components/preventa";
 import { Retiro } from "@/features/tienda/components/retiro";
 import { useCarrito } from "@/features/tienda/carrito/carrito-context";
 import { useCotizacion } from "@/features/tienda/hooks/use-tienda";
@@ -101,6 +102,7 @@ export function CarritoDrawer() {
                       {linea?.productoNombre ?? item.nombre}
                     </Link>
                     {item.talle && <p className="text-xs text-muted-foreground">Talle {item.talle}</p>}
+                    {linea?.preventa && <EtiquetaPreventa chica className="mt-1 inline-block" />}
 
                     {problema && (
                       <p className="mt-1 flex items-start gap-1 text-xs font-medium text-destructive">
@@ -168,6 +170,7 @@ export function CarritoDrawer() {
 
         {items.length > 0 && (
           <SheetFooter className="gap-3 border-t">
+            {cotizacion?.lineas.some((linea) => linea.preventa) && <NotaPreventa />}
             <Retiro className="rounded-lg bg-muted p-3 text-xs text-muted-foreground" />
 
             {cotizacion && cotizacion.descuentoMonto > 0 && (

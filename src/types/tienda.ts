@@ -47,6 +47,15 @@ export interface ProductoResumen {
   /** `false` en vasos, mates y accesorios: se compran sin elegir talle. */
   tieneTalles: boolean;
   disponibilidad: Disponibilidad;
+  /** En preventa se vende a pedido: todos los talles llegan `DISPONIBLE`. */
+  preventa: PreventaProducto | null;
+}
+
+export interface PreventaProducto {
+  /** A esa hora cierra sola. */
+  hasta: ISODateString;
+  /** Texto libre del club sobre cuándo llega. */
+  entrega: string | null;
 }
 
 /** Un talle; sin talles hay una sola variante con `talle: null`. El `id` es lo que va al carrito. */
@@ -73,6 +82,8 @@ export interface FiltrosCatalogo {
   talle?: string;
   precioMin?: number;
   precioMax?: number;
+  /** Solo los que están en preventa. */
+  preventa?: true;
   buscar?: string;
   destacados?: boolean;
   orden?: OrdenCatalogo;
@@ -123,6 +134,8 @@ export interface ProductoAdmin {
   tieneTalles: boolean;
   stockTotal: number;
   stockBajo: boolean;
+  /** La abierta o la última que tuvo; con `activa: false` ya cerró. */
+  preventa: (PreventaProducto & { activa: boolean }) | null;
   variantes: VarianteAdmin[];
   imagenes: ImagenProducto[];
   createdAt: ISODateString;
@@ -229,6 +242,8 @@ export interface LineaCotizada {
   /** Con el descuento de socio, si corresponde. */
   precioFinal: number;
   subtotal: number;
+  /** Se vende a pedido: nunca da STOCK_INSUFICIENTE. */
+  preventa: boolean;
   problema: ProblemaLinea | null;
   /** Solo con STOCK_INSUFICIENTE. */
   disponibles: number | null;
@@ -282,6 +297,8 @@ export interface ItemPedido {
   precioUnitario: number;
   precioFinal: number;
   subtotal: number;
+  /** Se entrega cuando llegue al club. */
+  preventa: boolean;
 }
 
 /** Un pedido con sus precios congelados del momento de la compra. No trae el DNI. */
@@ -301,6 +318,8 @@ export interface Pedido {
   descuentoMonto: number;
   total: number;
   motivoCancelacion: string | null;
+  /** Algún renglón está en preventa. */
+  preventa: boolean;
   historial: { estado: EstadoPedido; fecha: ISODateString }[];
   /** El trámite del botón de arrepentimiento, si lo hay. */
   arrepentimiento: { tramite: string; estado: EstadoArrepentimiento; nota: string | null } | null;
@@ -351,6 +370,8 @@ export interface FiltrosPedidosAdmin {
   estado?: EstadoPedido;
   /** Código, nombre, apellido o DNI del comprador. */
   buscar?: string;
+  /** Solo los que tienen algo en preventa. */
+  preventa?: true;
 }
 
 /** Dashboard de ventas: últimos 6 meses. Solo cuentan los pedidos pagados. */
@@ -387,6 +408,18 @@ export interface ResolverArrepentimientoInput {
   nota?: string;
   /** Al aceptar: la prenda puede volver en mal estado. */
   reponerStock?: boolean;
+}
+
+/** Lo que el club tiene que encargar de una preventa, abierta o cerrada. */
+export interface ResumenPreventa {
+  productoId: string;
+  nombre: string;
+  hasta: ISODateString;
+  entrega: string | null;
+  activa: boolean;
+  unidades: number;
+  unidadesPagadas: number;
+  talles: { talle: string; unidades: number; unidadesPagadas: number }[];
 }
 
 export interface CompradorInput {

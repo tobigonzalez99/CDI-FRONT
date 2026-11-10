@@ -100,6 +100,16 @@ export const tallesStockSchema = z
 
 export type TallesStockFormValues = z.infer<typeof tallesStockSchema>;
 
+export const preventaSchema = z.object({
+  hasta: z
+    .string()
+    .min(1, "Elegí la fecha y la hora de cierre")
+    .refine((valor) => new Date(valor).getTime() > Date.now(), "Tiene que ser una fecha futura"),
+  entrega: z.string().trim().max(150, "Hasta 150 caracteres"),
+});
+
+export type PreventaFormValues = z.infer<typeof preventaSchema>;
+
 export const cancelarPedidoSchema = z.object({
   motivo: z.string().trim().min(3, "Contale al comprador por qué se cancela").max(300, "Hasta 300 caracteres"),
 });

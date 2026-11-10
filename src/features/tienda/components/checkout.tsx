@@ -16,6 +16,7 @@ import { useSession } from "@/features/auth/hooks/use-session";
 import { obtenerMiPerfil } from "@/features/socios/api/perfil.api";
 import { textoProblema } from "@/features/tienda/components/carrito-drawer";
 import { FotoProducto } from "@/features/tienda/components/foto-producto";
+import { EtiquetaPreventa, NotaPreventa } from "@/features/tienda/components/preventa";
 import { Campo, CLASES_TEXTAREA } from "@/features/tienda/components/panel/campo";
 import { useCarrito } from "@/features/tienda/carrito/carrito-context";
 import { guardarTokenSeguimiento } from "@/features/tienda/lib/seguimiento";
@@ -93,6 +94,7 @@ function Resumen({ cotizacion, cargando }: { cotizacion: Cotizacion | undefined;
                   <div className="min-w-0 flex-1 text-sm">
                     <p className="font-medium">{linea.productoNombre}</p>
                     {linea.talle && <p className="text-xs text-muted-foreground">Talle {linea.talle}</p>}
+                    {linea.preventa && <EtiquetaPreventa chica className="mt-1 inline-block" />}
                     {problema && (
                       <p className="mt-1 flex items-start gap-1 text-xs font-medium text-destructive">
                         <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
@@ -105,6 +107,8 @@ function Resumen({ cotizacion, cargando }: { cotizacion: Cotizacion | undefined;
               );
             })}
           </ul>
+
+          {cotizacion.lineas.some((linea) => linea.preventa) && <NotaPreventa className="mt-4" />}
 
           <dl className="mt-5 space-y-2 border-t pt-4 text-sm">
             <div className="flex justify-between">

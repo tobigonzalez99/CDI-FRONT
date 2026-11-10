@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChartColumn, FolderTree, Package, Settings, ShoppingCart, Undo2, UsersRound } from "lucide-react";
+import { CalendarClock, ChartColumn, FolderTree, Package, Settings, ShoppingCart, Undo2, UsersRound } from "lucide-react";
 
 import { useSession } from "@/features/auth/hooks/use-session";
 import { useArrepentimientos } from "@/features/tienda/hooks/use-tienda-admin";
@@ -13,6 +13,7 @@ const SECCIONES = [
   { href: "/tienda/panel/pedidos", label: "Pedidos", Icon: ShoppingCart },
   { href: "/tienda/panel/arrepentimientos", label: "Arrepentimientos", Icon: Undo2 },
   { href: "/tienda/panel/productos", label: "Productos", Icon: Package },
+  { href: "/tienda/panel/preventas", label: "Preventas", Icon: CalendarClock },
   { href: "/tienda/panel/categorias", label: "Categorías", Icon: FolderTree },
   { href: "/tienda/panel/ajustes", label: "Ajustes", Icon: Settings },
   { href: "/tienda/panel/operadores", label: "Usuarios", Icon: UsersRound, soloAdmin: true },

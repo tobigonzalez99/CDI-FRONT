@@ -3,6 +3,7 @@ import { format, parseISO } from "date-fns";
 import { Ban, Check, Clock, Store, Undo2 } from "lucide-react";
 
 import { FotoProducto } from "@/features/tienda/components/foto-producto";
+import { EtiquetaPreventa, NotaPreventa } from "@/features/tienda/components/preventa";
 import { formatearMonto } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import {
@@ -162,7 +163,10 @@ export function DetallePedido({ pedido }: { pedido: Pedido }) {
                   className="w-14 shrink-0 rounded-lg"
                 />
                 <div className="min-w-0 flex-1 text-sm">
-                  <p className="font-medium">{item.productoNombre}</p>
+                  <p className="font-medium">
+                    {item.productoNombre}
+                    {item.preventa && <EtiquetaPreventa chica className="ml-2 align-middle" />}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {item.cantidad} × {formatearMonto(item.precioFinal)}
                     {item.talle && ` · talle ${item.talle}`}
@@ -172,6 +176,7 @@ export function DetallePedido({ pedido }: { pedido: Pedido }) {
               </li>
             ))}
           </ul>
+          {pedido.preventa && !cancelado && !devuelto && <NotaPreventa className="mt-4" />}
           <dl className="mt-5 space-y-2 border-t pt-4 text-sm">
             {pedido.descuentoMonto > 0 && (
               <>

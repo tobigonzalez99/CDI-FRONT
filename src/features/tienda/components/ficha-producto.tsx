@@ -9,6 +9,7 @@ import { Cargando, ErrorConsulta } from "@/components/shared/estado-consulta";
 import { ContenidoMarkdown } from "@/features/paginas/components/contenido-markdown";
 import { FotoProducto } from "@/features/tienda/components/foto-producto";
 import { AvisoStock, Precio } from "@/features/tienda/components/precio";
+import { AvisoPreventa, EtiquetaPreventa } from "@/features/tienda/components/preventa";
 import { Retiro } from "@/features/tienda/components/retiro";
 import { TarjetaProducto } from "@/features/tienda/components/tarjeta-producto";
 import { useCarrito } from "@/features/tienda/carrito/carrito-context";
@@ -92,7 +93,11 @@ function Ficha({ producto }: { producto: ProductoDetalle }) {
               sizes="(min-width: 768px) 50vw, 100vw"
               className={cn(agotado && "opacity-50 grayscale")}
             />
-            <AvisoStock disponibilidad={producto.disponibilidad} className="absolute top-3 left-3" />
+            {producto.preventa ? (
+              <EtiquetaPreventa className="absolute top-3 left-3" />
+            ) : (
+              <AvisoStock disponibilidad={producto.disponibilidad} className="absolute top-3 left-3" />
+            )}
           </div>
 
           {imagenes.length > 1 && (
@@ -125,6 +130,8 @@ function Ficha({ producto }: { producto: ProductoDetalle }) {
             <Precio producto={producto} grande />
             <p className="mt-1 text-xs text-muted-foreground">Precio final, con impuestos incluidos.</p>
           </div>
+
+          {producto.preventa && <AvisoPreventa preventa={producto.preventa} className="mt-6" />}
 
           {producto.tieneTalles && !agotado && (
             <fieldset className="mt-8">

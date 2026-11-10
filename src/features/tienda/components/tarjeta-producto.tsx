@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { FotoProducto } from "@/features/tienda/components/foto-producto";
 import { AvisoStock, Precio } from "@/features/tienda/components/precio";
+import { EtiquetaPreventa } from "@/features/tienda/components/preventa";
 import { cn } from "@/lib/utils";
 import type { ProductoResumen } from "@/types/tienda";
 
@@ -30,7 +31,11 @@ export function TarjetaProducto({ producto }: { producto: ProductoResumen }) {
               Nuevo
             </span>
           )}
-          <AvisoStock disponibilidad={producto.disponibilidad} />
+          {producto.preventa ? (
+            <EtiquetaPreventa />
+          ) : (
+            <AvisoStock disponibilidad={producto.disponibilidad} />
+          )}
         </div>
       </div>
 

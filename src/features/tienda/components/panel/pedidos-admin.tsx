@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Cargando, ErrorConsulta } from "@/components/shared/estado-consulta";
 import { EtiquetaEstadoPedido } from "@/features/tienda/components/detalle-pedido";
+import { EtiquetaPreventa } from "@/features/tienda/components/preventa";
 import { Campo, CLASES_SELECT, CLASES_TEXTAREA } from "@/features/tienda/components/panel/campo";
 import { useCambiarEstadoPedido, usePedidosAdmin } from "@/features/tienda/hooks/use-tienda-admin";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -309,6 +310,7 @@ function TarjetaPedido({
             <span>
               {item.cantidad} × {item.productoNombre}
               {item.talle && <span className="text-muted-foreground"> · talle {item.talle}</span>}
+              {item.preventa && <EtiquetaPreventa chica className="ml-2 align-middle" />}
             </span>
             <span className="text-muted-foreground tabular-nums">{formatearMonto(item.subtotal)}</span>
           </li>
@@ -406,7 +408,8 @@ function TarjetaPedido({
 }
 
 /** Pedidos de la tienda: del pago en el club a la entrega, con el DNI a mano. */
-export function PedidosAdmin() {
+export function PedidosAdmin({ soloPreventaInicial = false }: { soloPreventaInicial?: boolean }) {
+  const [soloPreventa, setSoloPreventa] = useState(soloPreventaInicial);
   const [estado, setEstado] = useState<EstadoPedido | undefined>();
   const [texto, setTexto] = useState("");
   const [pagina, setPagina] = useState(1);
@@ -421,6 +424,7 @@ export function PedidosAdmin() {
     pageSize: 20,
     estado,
     buscar: buscar || undefined,
+    preventa: soloPreventa || undefined,
   });
 
   return (
@@ -477,6 +481,19 @@ export function PedidosAdmin() {
             className="h-9 pl-9"
           />
         </div>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="size-4 accent-brand-red"
+            checked={soloPreventa}
+            onChange={(evento) => {
+              setSoloPreventa(evento.target.checked);
+              setPagina(1);
+            }}
+          />
+          Solo con preventa
+        </label>
       </div>
 
       {isPending ? (
